@@ -1,7 +1,7 @@
-import streamlit as st
 import requests
 from dotenv import load_dotenv
 import os
+import streamlit as st
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -27,34 +27,54 @@ def get_game_info(game_name):
         if data["results"]:
             # Obtener el primer juego de los resultados
             game = data["results"][0]
-            return game
+            
+            # Aumentar tamaño del título del juego
+            st.markdown(f"## <span style='font-size: 40px'>{game['name']}</span>", unsafe_allow_html=True)
+
+            # Crear dos columnas: una para la imagen y otra para la información
+            col1, col2 = st.columns([2, 5])  # Proporción más ancha para la columna de información
+
+            with col1:
+                # Mostrar la imagen del juego si está disponible
+                if game.get('image', {}).get('small_url'):
+                    st.image(game['image']['small_url'], caption="Imagen principal", use_container_width=True)
+
+            with col2:
+                # Espacio para separar un poco la imagen del texto
+                st.write(" ")  
+                st.write(" ")  # Se añadió más espacio
+
+                # Aumentar tamaño de texto
+                st.markdown(f"### <span style='font-size: 20px'>**Descripción:** {game.get('deck', 'Descripción no disponible.')}</span>", unsafe_allow_html=True)
+
+                # Mostrar la fecha de lanzamiento con tamaño mayor
+                release_date = game.get('original_release_date', None)
+                if release_date:
+                    st.markdown(f"### <span style='font-size: 18px'>**Fecha de lanzamiento:** {release_date[:10]}</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"### <span style='font-size: 18px'>**Fecha de lanzamiento:** No disponible</span>", unsafe_allow_html=True)
+                
+                # Obtener las plataformas disponibles (si las hay)
+                platforms = game.get('platforms', [])
+                if platforms:
+                    platform_names = [platform['name'] for platform in platforms]
+                    st.markdown(f"### <span style='font-size: 18px'>**Plataformas:** {', '.join(platform_names)}</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"### <span style='font-size: 18px'>**Plataformas:** No disponible</span>", unsafe_allow_html=True)
         else:
-            return None
+            st.write("No se encontró información sobre el juego.")
     else:
-        return None
+        st.write(f"Error al acceder a la API: {response.status_code}")
 
+# Streamlit UI
 def main():
-    # Título de la app
-    st.title("Información sobre Videojuegos")
-    st.write("Escribe el nombre de un juego para obtener información:")
+    st.title("Información de Juegos")
 
-    # Entrada de texto para el nombre del juego
-    game_name = st.text_input("Nombre del juego")
+    # Entrada de usuario
+    game_name = st.text_input("Ingrese el nombre del juego:")
 
-    # Si se ingresa un nombre, mostrar la información
     if game_name:
-        game_info = get_game_info(game_name)
-        if game_info:
-            st.subheader(f"Nombre: {game_info['name']}")
-            st.write(f"Descripción: {game_info.get('deck', 'Descripción no disponible.')}")
-            st.write(f"Fecha de lanzamiento: {game_info.get('original_release_date', 'No disponible')}")
-            platforms = game_info.get('platforms', [])
-            if platforms:
-                st.write("Plataformas: " + ", ".join([platform['name'] for platform in platforms]))
-            else:
-                st.write("Plataformas: No disponible")
-        else:
-            st.write("No se encontró información sobre este juego.")
+        get_game_info(game_name)
 
 if __name__ == "__main__":
     main()
