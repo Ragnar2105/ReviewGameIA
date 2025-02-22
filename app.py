@@ -2,12 +2,16 @@ import requests
 from dotenv import load_dotenv
 import os
 import streamlit as st
+from translate import Translator
 
 # Cargar las variables del archivo .env
 load_dotenv()
 
 # Obtener la clave de API desde el archivo .env
 API_KEY = os.getenv("GIANT_BOMB_API_KEY")
+
+# Crear una instancia del traductor para traducir al español
+translator = Translator(to_lang="es")
 
 def get_game_info(game_name):
     # URL base de la API de Giant Bomb
@@ -27,8 +31,11 @@ def get_game_info(game_name):
         if data["results"]:
             # Obtener el primer juego de los resultados
             game = data["results"][0]
-            
-            # Aumentar tamaño del título del juego
+
+            # Traducir la descripción y otros campos al español
+            translated_description = translator.translate(game.get('deck', 'Descripción no disponible.'))
+
+            # Mostrar el título del juego con un tamaño mayor
             st.markdown(f"## <span style='font-size: 40px'>{game['name']}</span>", unsafe_allow_html=True)
 
             # Crear dos columnas: una para la imagen y otra para la información
@@ -44,10 +51,10 @@ def get_game_info(game_name):
                 st.write(" ")  
                 st.write(" ")  # Se añadió más espacio
 
-                # Aumentar tamaño de texto
-                st.markdown(f"### <span style='font-size: 20px'>**Descripción:** {game.get('deck', 'Descripción no disponible.')}</span>", unsafe_allow_html=True)
+                # Mostrar la descripción traducida al español
+                st.markdown(f"### <span style='font-size: 20px'>**Descripción:** {translated_description}</span>", unsafe_allow_html=True)
 
-                # Mostrar la fecha de lanzamiento con tamaño mayor
+                # Mostrar la fecha de lanzamiento
                 release_date = game.get('original_release_date', None)
                 if release_date:
                     st.markdown(f"### <span style='font-size: 18px'>**Fecha de lanzamiento:** {release_date[:10]}</span>", unsafe_allow_html=True)
