@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 import os
 import streamlit as st
 from translate import Translator
+import csv
+import json
+import re
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -13,7 +16,56 @@ API_KEY = os.getenv("GIANT_BOMB_API_KEY")
 # Crear una instancia del traductor para traducir al español
 translator = Translator(to_lang="es")
 
+# Función para guardar los datos en un archivo CSV
+def save_game_info_csv(game):
+    header = ['name', 'description', 'release_date', 'platforms']
+    game_data = {
+        'name': game['name'],
+        'description': game.get('deck', 'Descripción no disponible'),
+        'release_date': game.get('original_release_date', 'No disponible'),
+        'platforms': [platform['name'] for platform in game.get('platforms', [])]
+    }
+
+    # Verificar si el archivo CSV ya existe para no agregar el encabezado repetidamente
+    file_exists = os.path.isfile('game_info.csv')
+
+    with open('game_info.csv', mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=header)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(game_data)
+
+# Función para guardar los datos en un archivo JSON
+def save_game_info_json(game):
+    game_data = {
+        'name': game['name'],
+        'description': game.get('deck', 'Descripción no disponible'),
+        'release_date': game.get('original_release_date', 'No disponible'),
+        'platforms': [platform['name'] for platform in game.get('platforms', [])]
+    }
+
+    # Verificar si el archivo JSON ya existe
+    if os.path.exists('game_info.json'):
+        with open('game_info.json', 'r', encoding='utf-8') as file:
+            data = json.load(file)
+    else:
+        data = []
+
+    data.append(game_data)
+
+    # Guardar los datos en el archivo JSON
+    with open('game_info.json', 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
+
+# Función para extraer el nombre del juego en lenguaje natural
+def extract_game_name(user_input):
+    match = re.search(r"(?:háblame de|dime información sobre|qué sabes de|quiero saber sobre) (.+)", user_input, re.IGNORECASE)
+    return match.group(1) if match else user_input
+
 def get_game_info(game_name):
+    # Extraer el nombre del juego en lenguaje natural
+    game_name = extract_game_name(game_name)
+    
     # URL base de la API de Giant Bomb
     url = f"https://www.giantbomb.com/api/games/?api_key={API_KEY}&format=json&limit=1&filter=name:{game_name}"
 
@@ -68,6 +120,10 @@ def get_game_info(game_name):
                     st.markdown(f"### <span style='font-size: 18px'>**Plataformas:** {', '.join(platform_names)}</span>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"### <span style='font-size: 18px'>**Plataformas:** No disponible</span>", unsafe_allow_html=True)
+            
+            # Guardar la información del juego en el archivo CSV o JSON
+            save_game_info_csv(game)
+            save_game_info_json(game)
         else:
             st.write("No se encontró información sobre el juego.")
     else:
@@ -78,7 +134,7 @@ def main():
     st.title("Información de Juegos")
 
     # Entrada de usuario
-    game_name = st.text_input("Ingrese el nombre del juego:")
+    game_name = st.text_input("Ingrese el nombre del juego o una frase en lenguaje natural:")
 
     if game_name:
         get_game_info(game_name)

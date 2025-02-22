@@ -1,0 +1,49 @@
+[
+    {
+        "name": "The Witcher 3: Wild Hunt",
+        "description": "CD Projekt RED's third Witcher combines the series' non-linear storytelling with a sprawling open world that concludes the saga of Geralt of Rivia.",
+        "release_date": "2015-05-19",
+        "platforms": [
+            "PC",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "God of War",
+        "description": "Play as the Spartan warrior, Kratos, as he cuts his way through armies of mythological creatures on a path to kill Ares, the God of War, and gain redemption for his past sins.",
+        "release_date": "2005-03-22",
+        "platforms": [
+            "PlayStation 2"
+        ]
+    },
+    {
+        "name": "God of War",
+        "description": "Play as the Spartan warrior, Kratos, as he cuts his way through armies of mythological creatures on a path to kill Ares, the God of War, and gain redemption for his past sins.",
+        "release_date": "2005-03-22",
+        "platforms": [
+            "PlayStation 2"
+        ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    }
+]
