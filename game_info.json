@@ -45,5 +45,327 @@
             "Xbox Series X|S",
             "Amazon Luna"
         ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    },
+    {
+        "name": "God of War",
+        "description": "Play as the Spartan warrior, Kratos, as he cuts his way through armies of mythological creatures on a path to kill Ares, the God of War, and gain redemption for his past sins.",
+        "release_date": "2005-03-22",
+        "platforms": [
+            "PlayStation 2"
+        ]
+    },
+    {
+        "name": "Halo: Combat Evolved",
+        "description": "One of the launch titles of the original Xbox, Halo: Combat Evolved is a sci-fi first-person shooter telling the tale of an advanced cybernetic super-soldier known as the \"Master Chief\".",
+        "release_date": "2001-11-15",
+        "platforms": [
+            "Mac",
+            "Xbox 360",
+            "Xbox",
+            "Xbox 360 Games Store",
+            "PC"
+        ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    },
+    {
+        "name": "Halo: Combat Evolved",
+        "description": "One of the launch titles of the original Xbox, Halo: Combat Evolved is a sci-fi first-person shooter telling the tale of an advanced cybernetic super-soldier known as the \"Master Chief\".",
+        "release_date": "2001-11-15",
+        "platforms": [
+            "Mac",
+            "Xbox 360",
+            "Xbox",
+            "Xbox 360 Games Store",
+            "PC"
+        ]
+    },
+    {
+        "name": "Advanced Tactics Gold",
+        "description": "Advanced Tactics Gold is a turn-based tactical wargame with an endless number of scenarios thanks to its random game mode and scenario editor.",
+        "release_date": "2007-10-25",
+        "platforms": [
+            "PC"
+        ]
+    },
+    {
+        "name": "League of Legends",
+        "description": "A free-to-play competitive MOBA game with a large following in eSports. From the original developers of DotA: Allstars, the game expands the gameplay found in DotA by adding persistent Summoner profiles and a variety of original champions who fight for you on the battlefield against bots or one another.",
+        "release_date": "2009-10-27",
+        "platforms": [
+            "Mac",
+            "PC"
+        ]
+    },
+    {
+        "name": "Counter-Strike: Condition Zero",
+        "description": "Counter-Strike gets a updated look (thanks to a series of development teams) in this 2004 update, adding updated graphics, new bots, and two unique single-player campaigns.",
+        "release_date": "2004-03-01",
+        "platforms": [
+            "Mac",
+            "PC",
+            "Linux"
+        ]
+    },
+    {
+        "name": "Counter-Strike: Condition Zero",
+        "description": "Counter-Strike gets a updated look (thanks to a series of development teams) in this 2004 update, adding updated graphics, new bots, and two unique single-player campaigns.",
+        "release_date": "2004-03-01",
+        "platforms": [
+            "Mac",
+            "PC",
+            "Linux"
+        ]
+    },
+    {
+        "name": "Counter-Strike: Global Offensive",
+        "description": "The fourth iteration of Valve's team-based modern-military first-person shooter, rebuilt and constantly expanded for competitive play with new maps, new weapons, and new gameplay mechanics. It was later made free-to-play and most versions were later replaced with the sequel.",
+        "release_date": "2012-08-21",
+        "platforms": [
+            "Mac",
+            "Xbox 360 Games Store",
+            "PlayStation Network (PS3)",
+            "PC",
+            "Linux"
+        ]
+    },
+    {
+        "name": "Counter-Strike 2",
+        "description": "Counter-Strike 2 brings twenty years of Counter-Strike experience into Source 2 Engine.",
+        "release_date": "2023-09-27",
+        "platforms": [
+            "PC",
+            "Linux"
+        ]
+    },
+    {
+        "name": "PUBG: Battlegrounds",
+        "description": "A survival-shooter led by the modder behind the Battle Royale mods for the ArmA series. It is one of the progenitors of the \"battle royale\" sub-genre, pitting 100 players in a large empty location where they must scavenge for weapons and fight to the death.",
+        "release_date": "2017-03-23",
+        "platforms": [
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Google Stadia"
+        ]
+    },
+    {
+        "name": "Ultimate Fighting Championship: Tapout",
+        "description": "This is a game based on the sport of MMA.",
+        "release_date": "2002-02-17",
+        "platforms": [
+            "Xbox"
+        ]
+    },
+    {
+        "name": "Tom Clancy's Rainbow Six: Lockdown",
+        "description": "The fourth mainline game in the Tom Clancy's Rainbow Six series.",
+        "release_date": "2005-09-06",
+        "platforms": [
+            "PlayStation 2",
+            "GameCube",
+            "Xbox",
+            "PC"
+        ]
+    },
+    {
+        "name": "Tom Clancy's Rainbow Six Siege",
+        "description": "Rainbow Six Siege is a competitive multiplayer first-person shooter developed by Ubisoft Montreal. Players chose from a large roster of Operators with their own weapons and abilities to win round-based attack and defend matches.",
+        "release_date": "2015-12-01",
+        "platforms": [
+            "PC",
+            "Xbox One",
+            "PlayStation 4",
+            "Google Stadia",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    },
+    {
+        "name": "Elden Ring",
+        "description": "Elden Ring by FromSoftware is a collaboration between Hidetaka Miyazaki and George R.R. Martin.",
+        "release_date": "2022-02-25",
+        "platforms": [
+            "PC",
+            "Xbox One",
+            "PlayStation 4",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Dark Sun: Shattered Lands",
+        "description": "Dark Sun: Shattered Lands was released in 1993 and is the first Dungeons and Dragons game to use the Dark Sun campaign setting. While fairly obscure outside of enthusiast circles, it is praised for its tactical, turn-based combat.",
+        "release_date": null,
+        "platforms": [
+            "PC"
+        ]
+    },
+    {
+        "name": "Jurassic Park: Survival",
+        "description": "Planned to coincide with Jurassic Park 3, Survival was to see players take on dinosaurs and terrorists alike as they fought to escape Isla Sorna. The game, however, quickly went extinct.",
+        "release_date": null,
+        "platforms": [
+            "PlayStation 2"
+        ]
+    },
+    {
+        "name": "Black Myth: Wukong",
+        "description": "An adventure/brawler based on Journey to the West and other Chinese literature and myth",
+        "release_date": "2024-08-20",
+        "platforms": [
+            "PC",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Indiana Jones and the Great Circle",
+        "description": "Indiana Jones and the Great Circle follows the titular character on his journey to discover the mysterious \"Great Circle\" and stop the villainous forces trying to exploit its power in a globetrotting action-adventure game from the makers of Wolfenstein.",
+        "release_date": "2024-12-09",
+        "platforms": [
+            "PC",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Cyberpunk 2077",
+        "description": "An open-world action role-playing game by CD Projekt RED based on the pen and paper RPG Cyberpunk 2020.",
+        "release_date": "2020-12-10",
+        "platforms": [
+            "PC",
+            "Xbox One",
+            "PlayStation 4",
+            "Google Stadia",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Baldur's Gate 3",
+        "description": "An ancient evil has returned to Baldur's Gate, intent on devouring it from the inside out. \nCombat is Turn-based instead of Real-Time with Pauses style combat as previous main installments in the Baldur's Gate series",
+        "release_date": "2023-08-03",
+        "platforms": [
+            "Mac",
+            "PC",
+            "Google Stadia",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Star Wars Jedi: Fallen Order",
+        "description": "An action-adventure game in the Star Wars series from the studio behind the Titanfall series, following a Jedi Padawan who turns fugitive after escaping the Jedi Purge.",
+        "release_date": "2019-11-15",
+        "platforms": [
+            "PC",
+            "Xbox One",
+            "PlayStation 4",
+            "Google Stadia",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Hollow Knight: Silksong",
+        "description": "A sequel to Hollow Knight following the adventures of Hornet.",
+        "release_date": null,
+        "platforms": [
+            "Mac",
+            "PC",
+            "PlayStation 4",
+            "Linux",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
+    },
+    {
+        "name": "Cyberpunk 2077",
+        "description": "An open-world action role-playing game by CD Projekt RED based on the pen and paper RPG Cyberpunk 2020.",
+        "release_date": "2020-12-10",
+        "platforms": [
+            "PC",
+            "Xbox One",
+            "PlayStation 4",
+            "Google Stadia",
+            "PlayStation 5",
+            "Xbox Series X|S"
+        ]
     }
 ]

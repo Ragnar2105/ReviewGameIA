@@ -59,7 +59,7 @@ def save_game_info_json(game):
 
 # Función para extraer el nombre del juego en lenguaje natural
 def extract_game_name(user_input):
-    match = re.search(r"(?:háblame de|dime información sobre|qué sabes de|quiero saber sobre) (.+)", user_input, re.IGNORECASE)
+    match = re.search(r"(?:háblame de|dime información sobre|hablame de|qué sabes de|quiero saber sobre) (.+)", user_input, re.IGNORECASE)
     return match.group(1) if match else user_input
 
 def get_game_info(game_name):
@@ -131,10 +131,10 @@ def get_game_info(game_name):
 
 # Streamlit UI
 def main():
-    st.title("Información de Juegos")
+    st.title("ReviewGameIA")
 
     # Entrada de usuario
-    game_name = st.text_input("Ingrese el nombre del juego o una frase en lenguaje natural:")
+    game_name = st.text_input("Cual juego tienes en mente:")
 
     if game_name:
         get_game_info(game_name)
