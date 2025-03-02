@@ -1385,5 +1385,41 @@
         "platforms": [
             "PC"
         ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
+    },
+    {
+        "name": "Fortnite",
+        "description": "Originally a co-operative looter shooter from the studios behind Unreal Tournament and Gears of War, Fortnite became one of the most successful PvP \"battle royale\" games and later became its own platform for several types of games.",
+        "release_date": "2017-07-25",
+        "platforms": [
+            "Mac",
+            "PC",
+            "iPhone",
+            "iPad",
+            "Android",
+            "Xbox One",
+            "PlayStation 4",
+            "Nintendo Switch",
+            "PlayStation 5",
+            "Xbox Series X|S",
+            "Amazon Luna"
+        ]
     }
 ]

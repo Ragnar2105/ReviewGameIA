@@ -19,6 +19,10 @@ OCR_API_KEY = os.getenv("OCR_API_KEY")  # Mueve la clave de OCR al archivo .env
 # Configurar el traductor al español
 translator = Translator(to_lang="es")
 
+# Crear la carpeta 'data' si no existe
+if not os.path.exists("data"):
+    os.makedirs("data")
+
 # Función para mejorar la imagen antes de enviarla al OCR
 def enhance_image(image_path):
     try:
@@ -106,7 +110,7 @@ def extract_game_name(user_input):
         r"(?:háblame de|dime información sobre|qué sabes de|quiero saber sobre|busca)\s+(.+)",
         r"(?:juegos de|juegos para)\s+(.+)",
         r"(?:juegos de)\s+(.+)\s+(?:lanzados en|del año)\s+(\d{4})",
-        r"(?:juegos de)\s+(.+)\s+(?:en)\s+(.+)",  # Ejemplo: "juegos de acción en PlayStation"
+        r"(?:juegos de)\s+(.+)\s+(?:en)\s+(.+)"  # Ejemplo: "juegos de acción en PlayStation"
     ]
 
     for pattern in patterns:
@@ -165,9 +169,9 @@ def save_game_info_csv(game):
         'platforms': [platform['name'] for platform in game.get('platforms', [])]
     }
 
-    file_exists = os.path.isfile('game_info.csv')
+    file_exists = os.path.isfile('data/game_info.csv')
 
-    with open('game_info.csv', mode='a', newline='', encoding='utf-8') as file:
+    with open('data/game_info.csv', mode='a', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=header)
         if not file_exists:
             writer.writeheader()
@@ -182,15 +186,16 @@ def save_game_info_json(game):
         'platforms': [platform['name'] for platform in game.get('platforms', [])]
     }
 
-    if os.path.exists('game_info.json'):
-        with open('game_info.json', 'r', encoding='utf-8') as file:
+    json_path = 'data/game_info.json'
+    if os.path.exists(json_path):
+        with open(json_path, 'r', encoding='utf-8') as file:
             data = json.load(file)
     else:
         data = []
 
     data.append(game_data)
 
-    with open('game_info.json', 'w', encoding='utf-8') as file:
+    with open(json_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 # Función para obtener la información del juego desde Giant Bomb
