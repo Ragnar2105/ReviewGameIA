@@ -1,22 +1,161 @@
 import requests
-from dotenv import load_dotenv
-import os
 import streamlit as st
-from translate import Translator
-import csv
+import os
 import json
+import csv
 import re
+from dotenv import load_dotenv
+from translate import Translator
+from PIL import Image, ImageEnhance, ImageFilter
+from io import BytesIO
 
 # Cargar las variables del archivo .env
 load_dotenv()
 
-# Obtener la clave de API desde el archivo .env
+# Obtener las claves de API
 API_KEY = os.getenv("GIANT_BOMB_API_KEY")
+OCR_API_KEY = os.getenv("OCR_API_KEY")  # Mueve la clave de OCR al archivo .env
 
-# Crear una instancia del traductor para traducir al español
+# Configurar el traductor al español
 translator = Translator(to_lang="es")
 
-# Función para guardar los datos en un archivo CSV
+# Función para mejorar la imagen antes de enviarla al OCR
+def enhance_image(image_path):
+    try:
+        with Image.open(image_path) as img:
+            # Convertir a escala de grises
+            img = img.convert("L")
+            
+            # Mejorar el contraste
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(2.0)  # Aumentar el contraste
+
+            # Mejorar el brillo
+            brightness = ImageEnhance.Brightness(img)
+            img = brightness.enhance(1.5)  # Aumentar el brillo
+
+            # Reducir el ruido
+            img = img.filter(ImageFilter.MedianFilter(size=3))
+
+            # Guardar la imagen procesada
+            enhanced_path = image_path.replace(".", "_enhanced.")
+            img.save(enhanced_path)
+            return enhanced_path
+    except Exception as e:
+        st.error(f"Error al procesar la imagen: {e}")
+        return None
+
+# Función para extraer texto usando OCR
+def extract_text_ocr_space(image_path):
+    enhanced_image_path = enhance_image(image_path)
+    if not enhanced_image_path:
+        return "No se pudo procesar la imagen."
+
+    # Intentar primero con español
+    with open(enhanced_image_path, "rb") as image_file:
+        response = requests.post(
+            "https://api.ocr.space/parse/image",
+            files={"image": image_file},
+            data={
+                "apikey": OCR_API_KEY,
+                "language": "spa",  # Español
+                "isOverlayRequired": False,
+                "filetype": "JPG",  # Asegurar que el tipo de archivo sea correcto
+                "OCREngine": 2  # Usar el motor OCR más avanzado
+            }
+        )
+
+    try:
+        result = response.json()
+    except ValueError:
+        st.error("Error al procesar la respuesta de OCR.")
+        return "No se pudo procesar la respuesta."
+
+    # Si no hay resultados con español, intentar con inglés
+    if not result.get("ParsedResults"):
+        with open(enhanced_image_path, "rb") as image_file:
+            response = requests.post(
+                "https://api.ocr.space/parse/image",
+                files={"image": image_file},
+                data={
+                    "apikey": OCR_API_KEY,
+                    "language": "eng",  # Inglés
+                    "isOverlayRequired": False,
+                    "filetype": "JPG",
+                    "OCREngine": 2
+                }
+            )
+        
+        try:
+            result = response.json()
+        except ValueError:
+            st.error("Error al procesar la respuesta de OCR.")
+            return "No se pudo procesar la respuesta."
+
+    # Verificar si se detectó texto
+    if result.get("ParsedResults"):
+        return result["ParsedResults"][0]["ParsedText"]
+    else:
+        st.error(f"Error OCR: {result}")
+        return "No se detectó texto en la imagen."
+
+# Función para extraer el nombre del juego y otros detalles en lenguaje natural
+def extract_game_name(user_input):
+    # Patrones para detectar consultas comunes
+    patterns = [
+        r"(?:háblame de|dime información sobre|qué sabes de|quiero saber sobre|busca)\s+(.+)",
+        r"(?:juegos de|juegos para)\s+(.+)",
+        r"(?:juegos de)\s+(.+)\s+(?:lanzados en|del año)\s+(\d{4})",
+        r"(?:juegos de)\s+(.+)\s+(?:en)\s+(.+)",  # Ejemplo: "juegos de acción en PlayStation"
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, user_input, re.IGNORECASE)
+        if match:
+            return match.groups()  # Devuelve una tupla con los grupos capturados
+
+    # Si no se encuentra ningún patrón, devolver la entrada completa
+    return (user_input.strip(),)
+
+# Función para interpretar la consulta
+def interpret_query(query_components):
+    query_type = "general"  # Por defecto, busca por nombre
+    filters = {}
+
+    if len(query_components) == 1:
+        # Consulta simple: "háblame de Mario"
+        filters["name"] = query_components[0]
+    elif len(query_components) == 2:
+        # Consulta con dos componentes: "juegos de acción en PlayStation"
+        if "en" in query_components[1].lower():
+            filters["platform"] = query_components[1]
+            filters["genre"] = query_components[0]
+        elif "lanzados en" in query_components[1].lower():
+            filters["release_year"] = query_components[1]
+            filters["genre"] = query_components[0]
+    elif len(query_components) == 3:
+        # Consulta con tres componentes: "juegos de acción lanzados en 2020"
+        filters["genre"] = query_components[0]
+        filters["release_year"] = query_components[2]
+
+    return query_type, filters
+
+# Función para construir la URL de la API
+def build_api_url(filters):
+    base_url = f"https://www.giantbomb.com/api/games/?api_key={API_KEY}&format=json&limit=10"
+    
+    if "name" in filters:
+        base_url += f"&filter=name:{filters['name']}"
+    if "platform" in filters:
+        base_url += f"&filter=platform:{filters['platform']}"
+    if "genre" in filters:
+        base_url += f"&filter=genre:{filters['genre']}"
+    if "release_year" in filters:
+        base_url += f"&filter=original_release_date:{filters['release_year']}-01-01|{filters['release_year']}-12-31"
+
+    return base_url
+
+# Función para guardar los datos en CSV
 def save_game_info_csv(game):
     header = ['name', 'description', 'release_date', 'platforms']
     game_data = {
@@ -26,7 +165,6 @@ def save_game_info_csv(game):
         'platforms': [platform['name'] for platform in game.get('platforms', [])]
     }
 
-    # Verificar si el archivo CSV ya existe para no agregar el encabezado repetidamente
     file_exists = os.path.isfile('game_info.csv')
 
     with open('game_info.csv', mode='a', newline='', encoding='utf-8') as file:
@@ -35,7 +173,7 @@ def save_game_info_csv(game):
             writer.writeheader()
         writer.writerow(game_data)
 
-# Función para guardar los datos en un archivo JSON
+# Función para guardar los datos en JSON
 def save_game_info_json(game):
     game_data = {
         'name': game['name'],
@@ -44,7 +182,6 @@ def save_game_info_json(game):
         'platforms': [platform['name'] for platform in game.get('platforms', [])]
     }
 
-    # Verificar si el archivo JSON ya existe
     if os.path.exists('game_info.json'):
         with open('game_info.json', 'r', encoding='utf-8') as file:
             data = json.load(file)
@@ -53,75 +190,63 @@ def save_game_info_json(game):
 
     data.append(game_data)
 
-    # Guardar los datos en el archivo JSON
     with open('game_info.json', 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
-# Función para extraer el nombre del juego en lenguaje natural
-def extract_game_name(user_input):
-    match = re.search(r"(?:háblame de|dime información sobre|hablame de|qué sabes de|quiero saber sobre) (.+)", user_input, re.IGNORECASE)
-    return match.group(1) if match else user_input
-
-def get_game_info(game_name):
-    # Extraer el nombre del juego en lenguaje natural
-    game_name = extract_game_name(game_name)
+# Función para obtener la información del juego desde Giant Bomb
+def get_game_info(user_input):
+    # Extraer componentes de la consulta
+    query_components = extract_game_name(user_input)
     
-    # URL base de la API de Giant Bomb
-    url = f"https://www.giantbomb.com/api/games/?api_key={API_KEY}&format=json&limit=1&filter=name:{game_name}"
-
-    # Agregar encabezado User-Agent
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-
+    # Interpretar la consulta
+    query_type, filters = interpret_query(query_components)
+    
+    # Construir la URL de la API
+    api_url = build_api_url(filters)
+    
     # Realizar la solicitud a la API
-    response = requests.get(url, headers=headers)
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    try:
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error al acceder a la API: {e}")
+        return
 
-    # Verificar el código de estado de la respuesta
     if response.status_code == 200:
         data = response.json()
         if data["results"]:
-            # Obtener el primer juego de los resultados
-            game = data["results"][0]
+            st.write("### Juegos sugeridos:")
+            for game in data["results"]:
+                description = game.get('deck', 'Descripción no disponible')
+                if description:
+                    translated_description = translator.translate(description)
+                else:
+                    translated_description = 'Descripción no disponible'
 
-            # Traducir la descripción y otros campos al español
-            translated_description = translator.translate(game.get('deck', 'Descripción no disponible.'))
-
-            # Mostrar el título del juego con un tamaño mayor
-            st.markdown(f"## <span style='font-size: 40px'>{game['name']}</span>", unsafe_allow_html=True)
-
-            # Crear dos columnas: una para la imagen y otra para la información
-            col1, col2 = st.columns([2, 5])  # Proporción más ancha para la columna de información
-
-            with col1:
                 # Mostrar la imagen del juego si está disponible
-                if game.get('image', {}).get('small_url'):
-                    st.image(game['image']['small_url'], caption="Imagen principal", use_container_width=True)
+                col1, col2 = st.columns([2, 5])
 
-            with col2:
-                # Espacio para separar un poco la imagen del texto
-                st.write(" ")  
-                st.write(" ")  # Se añadió más espacio
+                with col1:
+                    if game.get('image', {}).get('small_url'):
+                        st.image(game['image']['small_url'], caption="Imagen del juego", use_container_width=True)
 
-                # Mostrar la descripción traducida al español
-                st.markdown(f"### <span style='font-size: 20px'>**Descripción:** {translated_description}</span>", unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f"#### {game['name']}")
+                    st.write(f"**Descripción:** {translated_description}")
 
-                # Mostrar la fecha de lanzamiento
-                release_date = game.get('original_release_date', None)
-                if release_date:
-                    st.markdown(f"### <span style='font-size: 18px'>**Fecha de lanzamiento:** {release_date[:10]}</span>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"### <span style='font-size: 18px'>**Fecha de lanzamiento:** No disponible</span>", unsafe_allow_html=True)
-                
-                # Obtener las plataformas disponibles (si las hay)
-                platforms = game.get('platforms', [])
-                if platforms:
-                    platform_names = [platform['name'] for platform in platforms]
-                    st.markdown(f"### <span style='font-size: 18px'>**Plataformas:** {', '.join(platform_names)}</span>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"### <span style='font-size: 18px'>**Plataformas:** No disponible</span>", unsafe_allow_html=True)
-            
-            # Guardar la información del juego en el archivo CSV o JSON
+                    release_date = game.get('original_release_date', 'No disponible')
+                    if release_date != 'No disponible' and release_date:
+                        st.write(f"**Fecha de lanzamiento:** {release_date[:10]}")
+                    else:
+                        st.write(f"**Fecha de lanzamiento:** {release_date}")
+
+                    platforms = game.get('platforms', [])
+                    platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
+                    st.write(f"**Plataformas:** {platform_names}")
+                    st.write("----")
+
+            # Guardar información de los juegos sugeridos
             save_game_info_csv(game)
             save_game_info_json(game)
         else:
@@ -129,15 +254,39 @@ def get_game_info(game_name):
     else:
         st.write(f"Error al acceder a la API: {response.status_code}")
 
-# Streamlit UI
+# Interfaz de Streamlit
 def main():
     st.title("ReviewGameIA")
 
-    # Entrada de usuario
-    game_name = st.text_input("Cual juego tienes en mente:")
+    # Opción para escribir el nombre del juego
+    user_input = st.text_input("Escribe tu consulta (por ejemplo, 'juegos de Mario' o 'juegos de acción en PlayStation'):")
 
-    if game_name:
-        get_game_info(game_name)
+    # Opción para subir una imagen
+    uploaded_file = st.file_uploader("O sube una imagen con el nombre del juego", type=["png", "jpg", "jpeg"])
+
+    if user_input:
+        get_game_info(user_input)
+    elif uploaded_file:
+        # Guardar la imagen temporalmente
+        image_path = f"temp_image.{uploaded_file.name.split('.')[-1]}"
+        with open(image_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # Procesar la imagen con retroalimentación visual
+        with st.spinner("Procesando imagen..."):
+            extracted_text = extract_text_ocr_space(image_path)
+            st.write(f"**Texto detectado:** {extracted_text}")
+
+            # Intentar buscar el juego si se detecta texto
+            if extracted_text.strip():
+                get_game_info(extracted_text.strip())
+            else:
+                st.warning("No se pudo detectar texto en la imagen.")
+
+        # Eliminar la imagen temporal
+        os.remove(image_path)
+        if os.path.exists(image_path.replace(".", "_enhanced.")):
+            os.remove(image_path.replace(".", "_enhanced."))
 
 if __name__ == "__main__":
     main()
