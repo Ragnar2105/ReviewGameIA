@@ -8,6 +8,11 @@ from dotenv import load_dotenv
 from translate import Translator
 from PIL import Image, ImageEnhance, ImageFilter
 from io import BytesIO
+from textblob import TextBlob
+import spacy
+from itertools import combinations
+
+nlp = spacy.load("es_core_news_sm")
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -96,9 +101,9 @@ def extract_text_ocr_space(image_path):
             st.error("Error al procesar la respuesta de OCR.")
             return "No se pudo procesar la respuesta."
 
-    # Verificar si se detectó texto
     if result.get("ParsedResults"):
-        return result["ParsedResults"][0]["ParsedText"]
+        extracted_text = result["ParsedResults"][0]["ParsedText"].replace("\n", " ")
+        return extracted_text
     else:
         st.error(f"Error OCR: {result}")
         return "No se detectó texto en la imagen."
@@ -121,52 +126,107 @@ def extract_game_name(user_input):
     # Si no se encuentra ningún patrón, devolver la entrada completa
     return (user_input.strip(),)
 
-# Función para interpretar la consulta
-def interpret_query(query_components):
-    query_type = "general"  # Por defecto, busca por nombre
+def interpret_query(user_query):
+    """Analiza la consulta del usuario y extrae los filtros relevantes."""
+
+    # Si user_query es una tupla, convertirla en una cadena
+    if isinstance(user_query, tuple):
+        user_query = " ".join(user_query)
+    
+    # Asegurarse de que user_query sea una cadena y convertirla a minúsculas
+    user_query = str(user_query).lower()
+
+    # Procesar el texto con spaCy
+    doc = nlp(user_query)
+
+    # Lista de palabras clave para género y plataforma
+    genre_keywords = ["acción", "aventura", "estrategia", "rpg", "deportes", "carreras", "simulación", "misterio", "terror", "plataformas"]
+    platform_keywords = ["playstation", "xbox", "pc", "nintendo", "switch", "steam", "mobile", "android", "ios"]
+
+    # Palabras que no aportan valor para los filtros (palabras basura)
+    stop_words = {"dame", "quiero", "información", "podrías", "darme", "consultar", "de", "en", "sobre", "para", "con", "y", "la", "el", "los", "las", "un", "una", "que", "quisiera", "saber", "quiero"}
+
+    # Inicializar el diccionario de filtros
     filters = {}
 
-    if len(query_components) == 1:
-        # Consulta simple: "háblame de Mario"
-        filters["name"] = query_components[0]
-    elif len(query_components) == 2:
-        # Consulta con dos componentes: "juegos de acción en PlayStation"
-        if "en" in query_components[1].lower():
-            filters["platform"] = query_components[1]
-            filters["genre"] = query_components[0]
-        elif "lanzados en" in query_components[1].lower():
-            filters["release_year"] = query_components[1]
-            filters["genre"] = query_components[0]
-    elif len(query_components) == 3:
-        # Consulta con tres componentes: "juegos de acción lanzados en 2020"
-        filters["genre"] = query_components[0]
-        filters["release_year"] = query_components[2]
+    # Filtrar las palabras relevantes (eliminamos las palabras vacías y de puntuación)
+    filtered_words = [token.text for token in doc if token.text not in stop_words and not token.is_punct]
 
-    return query_type, filters
+    # Buscar las palabras clave de género y plataforma
+    for word in filtered_words:
+        if word in genre_keywords:
+            filters["genre"] = word
+        elif word in platform_keywords:
+            filters["platform"] = word
+        elif re.match(r'\d{4}', word):  # Si es un año
+            filters["release_year"] = word
+        else:  # El resto se considera nombre del juego
+            if "name" not in filters:
+                filters["name"] = word
+            else:
+                filters["name"] += f" {word}"
 
-# Función para construir la URL de la API
+    # Si no se ha asignado ningún nombre, asumimos que todo el texto es el nombre del juego
+    if "name" not in filters:
+        filters["name"] = " ".join(filtered_words)
+
+    # Mostrar los filtros aplicados
+    print(f"Filtros aplicados: {filters}")
+    
+    return filters
+
 def build_api_url(filters):
     base_url = f"https://www.giantbomb.com/api/games/?api_key={API_KEY}&format=json&limit=10"
-    
-    if "name" in filters:
-        base_url += f"&filter=name:{filters['name']}"
-    if "platform" in filters:
-        base_url += f"&filter=platform:{filters['platform']}"
-    if "genre" in filters:
-        base_url += f"&filter=genre:{filters['genre']}"
-    if "release_year" in filters:
-        base_url += f"&filter=original_release_date:{filters['release_year']}-01-01|{filters['release_year']}-12-31"
+    urls = set()  # Usamos un conjunto para evitar URLs duplicadas
 
-    return base_url
+    if isinstance(filters, dict):  # Asegurar que filters sea un diccionario
+        # Consultas basadas en name
+        if "name" in filters and isinstance(filters["name"], str):
+            words = filters["name"].split()
+            for word in words:
+                url = f"{base_url}&filter=name:{word}"
+                urls.add(url)  # Agregar la URL al conjunto
+
+        # Consultas adicionales para platform, genre y release_year
+        if "platform" in filters and isinstance(filters["platform"], str):
+            url = f"{base_url}&filter=platform:{filters['platform']}"
+            urls.add(url)
+
+        if "genre" in filters and isinstance(filters["genre"], str):
+            url = f"{base_url}&filter=genre:{filters['genre']}"
+            urls.add(url)
+
+        if "release_year" in filters and isinstance(filters["release_year"], str):
+            url = f"{base_url}&filter=original_release_date:{filters['release_year']}-01-01|{filters['release_year']}-12-31"
+            urls.add(url)
+
+    return tuple(urls)  # Convertir el conjunto en tupla
+
 
 # Función para guardar los datos en CSV
 def save_game_info_csv(game):
+    # Convertir dict_values en una lista si es necesario
+    if isinstance(game, dict):
+        game_data = game  # Es un diccionario, usarlo directamente
+    elif isinstance(game, list) and len(game) > 0 and isinstance(game[0], dict):
+        game_data = game[0]  # Si es una lista de diccionarios, tomar el primero
+    elif isinstance(game, dict_values):  # ERROR: dict_values no es un tipo válido en isinstance()
+        game_data = list(game)[0]  # Convertir a lista y tomar el primer elemento
+    else:
+        raise TypeError(f"Se esperaba un diccionario o una lista de diccionarios, pero se recibió {type(game)}")
+
     header = ['name', 'description', 'release_date', 'platforms']
-    game_data = {
-        'name': game['name'],
-        'description': game.get('deck', 'Descripción no disponible'),
-        'release_date': game.get('original_release_date', 'No disponible'),
-        'platforms': [platform['name'] for platform in game.get('platforms', [])]
+
+    # Manejo seguro de plataformas
+    platforms = game_data.get('platforms', [])
+    if not isinstance(platforms, list):
+        platforms = []
+
+    row = {
+        'name': game_data.get('name', 'Nombre no disponible'),
+        'description': game_data.get('deck', 'Descripción no disponible'),
+        'release_date': game_data.get('original_release_date', 'No disponible'),
+        'platforms': ', '.join([platform['name'] for platform in platforms if isinstance(platform, dict)])
     }
 
     file_exists = os.path.isfile('data/game_info.csv')
@@ -175,26 +235,45 @@ def save_game_info_csv(game):
         writer = csv.DictWriter(file, fieldnames=header)
         if not file_exists:
             writer.writeheader()
-        writer.writerow(game_data)
+        writer.writerow(row)
 
 # Función para guardar los datos en JSON
 def save_game_info_json(game):
-    game_data = {
-        'name': game['name'],
-        'description': game.get('deck', 'Descripción no disponible'),
-        'release_date': game.get('original_release_date', 'No disponible'),
-        'platforms': [platform['name'] for platform in game.get('platforms', [])]
-    }
+    # Asegúrate de que 'game' es un diccionario y no un dict_values
+    if isinstance(game, dict):
+        game_data = {
+            'name': game['name'],
+            'description': game.get('deck', 'Descripción no disponible'),
+            'release_date': game.get('original_release_date', 'No disponible'),
+            # Asegúrate de que platforms sea una lista de diccionarios con 'name'
+            'platforms': [platform.get('name', 'Plataforma no disponible') for platform in game.get('platforms', []) or []]
+        }
+    elif isinstance(game, list):  # Si es una lista de diccionarios
+        game_data = [{
+            'name': item['name'],
+            'description': item.get('deck', 'Descripción no disponible'),
+            'release_date': item.get('original_release_date', 'No disponible'),
+            # Asegúrate de que platforms sea una lista de diccionarios con 'name'
+            'platforms': [platform.get('name', 'Plataforma no disponible') for platform in (item.get('platforms', []) or [])]
+        } for item in game]
+    else:
+        raise TypeError(f"Se esperaba un diccionario o una lista de diccionarios, pero se recibió {type(game)}")
 
     json_path = 'data/game_info.json'
+    # Cargar los datos existentes si el archivo ya existe
     if os.path.exists(json_path):
         with open(json_path, 'r', encoding='utf-8') as file:
             data = json.load(file)
     else:
         data = []
 
-    data.append(game_data)
+    # Agregar los nuevos datos
+    if isinstance(game, list):  # Si es una lista, añadir todos los juegos
+        data.extend(game_data)
+    else:  # Si es un solo juego, añadir uno solo
+        data.append(game_data)
 
+    # Guardar los datos actualizados en el archivo JSON
     with open(json_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
@@ -204,60 +283,67 @@ def get_game_info(user_input):
     query_components = extract_game_name(user_input)
     
     # Interpretar la consulta
-    query_type, filters = interpret_query(query_components)
-    
-    # Construir la URL de la API
-    api_url = build_api_url(filters)
-    
-    # Realizar la solicitud a la API
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error al acceder a la API: {e}")
-        return
+    #query_type, filters = interpret_query(query_components) -> así estaba antes xd
 
-    if response.status_code == 200:
-        data = response.json()
-        if data["results"]:
-            st.write("### Juegos sugeridos:")
-            for game in data["results"]:
-                description = game.get('deck', 'Descripción no disponible')
-                if description:
-                    translated_description = translator.translate(description)
-                else:
-                    translated_description = 'Descripción no disponible'
-
-                # Mostrar la imagen del juego si está disponible
-                col1, col2 = st.columns([2, 5])
-
-                with col1:
-                    if game.get('image', {}).get('small_url'):
-                        st.image(game['image']['small_url'], caption="Imagen del juego", use_container_width=True)
-
-                with col2:
-                    st.markdown(f"#### {game['name']}")
-                    st.write(f"**Descripción:** {translated_description}")
-
-                    release_date = game.get('original_release_date', 'No disponible')
-                    if release_date != 'No disponible' and release_date:
-                        st.write(f"**Fecha de lanzamiento:** {release_date[:10]}")
-                    else:
-                        st.write(f"**Fecha de lanzamiento:** {release_date}")
-
-                    platforms = game.get('platforms', [])
-                    platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
-                    st.write(f"**Plataformas:** {platform_names}")
-                    st.write("----")
-
-            # Guardar información de los juegos sugeridos
-            save_game_info_csv(game)
-            save_game_info_json(game)
+    if user_input:
+        # Asegúrate de que user_input sea una cadena
+        if isinstance(user_input, str):
+            filters = interpret_query(user_input)
+            st.write(f"Filtros aplicados: {filters}")
         else:
-            st.write("No se encontró información sobre el juego.")
+            st.error("La entrada del usuario no es válida. Debe ser una cadena de texto.")
+    
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    all_results = []
+
+    for api_url in build_api_url(filters):
+        try:
+            response = requests.get(api_url, headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error al acceder a la API: {e}")
+            continue  # Saltar esta URL y seguir con la siguiente
+
+        if response.status_code == 200:
+            data = response.json()
+            if "results" in data:
+                all_results.extend(data["results"])  # Agregar los resultados a la lista
+
+    # Eliminar duplicados basados en el ID del juego
+    unique_results = {game["id"]: game for game in all_results}.values()
+
+    if unique_results:
+        st.write("### Juegos sugeridos:")
+        for game in unique_results:
+            description = game.get('deck', 'Descripción no disponible')
+
+            # Mostrar la imagen del juego si está disponible
+            col1, col2 = st.columns([2, 5])
+
+            with col1:
+                if game.get('image', {}).get('small_url'):
+                    st.image(game['image']['small_url'], caption="Imagen del juego", use_container_width=True)
+
+            with col2:
+                st.markdown(f"#### {game['name']}")
+                st.write(f"**Descripción:** {description}")
+
+                release_date = game.get('original_release_date', 'No disponible')
+                if release_date and isinstance(release_date, str):  
+                    st.write(f"**Fecha de lanzamiento:** {release_date[:10]}")
+                else:
+                    st.write("**Fecha de lanzamiento:** No disponible")
+
+                platforms = game.get('platforms', [])
+                platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
+                st.write(f"**Plataformas:** {platform_names}")
+                st.write("----")
+
+        # Guardar información de los juegos sugeridos
+        save_game_info_csv(list(unique_results))
+        save_game_info_json(list(unique_results))
     else:
-        st.write(f"Error al acceder a la API: {response.status_code}")
+        st.write("No se encontró información sobre el juego.")
 
 # Interfaz de Streamlit
 def main():
