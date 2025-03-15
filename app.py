@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from translate import Translator
 from PIL import Image, ImageEnhance, ImageFilter
 from io import BytesIO
-from textblob import TextBlob
 import spacy
 from itertools import combinations
 
@@ -202,7 +201,6 @@ def build_api_url(filters):
 
     return tuple(urls)  # Convertir el conjunto en tupla
 
-
 # Función para guardar los datos en CSV
 def save_game_info_csv(game):
     # Convertir dict_values en una lista si es necesario
@@ -210,8 +208,6 @@ def save_game_info_csv(game):
         game_data = game  # Es un diccionario, usarlo directamente
     elif isinstance(game, list) and len(game) > 0 and isinstance(game[0], dict):
         game_data = game[0]  # Si es una lista de diccionarios, tomar el primero
-    elif isinstance(game, dict_values):  # ERROR: dict_values no es un tipo válido en isinstance()
-        game_data = list(game)[0]  # Convertir a lista y tomar el primer elemento
     else:
         raise TypeError(f"Se esperaba un diccionario o una lista de diccionarios, pero se recibió {type(game)}")
 
@@ -229,9 +225,12 @@ def save_game_info_csv(game):
         'platforms': ', '.join([platform['name'] for platform in platforms if isinstance(platform, dict)])
     }
 
-    file_exists = os.path.isfile('data/game_info.csv')
+    file_path = 'data/game_info.csv'
+    file_exists = os.path.isfile(file_path)
 
-    with open('data/game_info.csv', mode='a', newline='', encoding='utf-8') as file:
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    with open(file_path, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=header)
         if not file_exists:
             writer.writeheader()

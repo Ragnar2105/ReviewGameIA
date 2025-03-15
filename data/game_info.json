@@ -4566,5 +4566,108 @@
             "Android",
             "Browser"
         ]
+    },
+    {
+        "name": "Desert Strike: Return to the Gulf",
+        "description": "A top-down isometric helicopter shoot 'em up originally for the Sega Genesis, which was later ported to a variety of platforms. It is best known for its open-ended mission design and was followed by several sequels.",
+        "release_date": null,
+        "platforms": [
+            "Amiga",
+            "Game Boy",
+            "Game Boy Advance",
+            "Game Gear",
+            "Genesis",
+            "Atari Lynx",
+            "Sega Master System",
+            "Super Nintendo Entertainment System",
+            "PC"
+        ]
+    },
+    {
+        "name": "Breakfree",
+        "description": "Breakfree is a block-breaking game that is similar to Breakout; however, it is played from a first-person perspective.",
+        "release_date": null,
+        "platforms": [
+            "PC"
+        ]
+    },
+    {
+        "name": "Hyperballoid Deluxe: Survival Pack",
+        "description": null,
+        "release_date": "2004-12-20",
+        "platforms": [
+            "PC"
+        ]
+    },
+    {
+        "name": "The Chessmaster 2000",
+        "description": "One of the most well-known comptuer chess games of the 1980's, The Chessmaster 2000 features an advanced chess engine by David Kittinger along with numerous training tools and mouse controls.",
+        "release_date": null,
+        "platforms": [
+            "Amiga",
+            "Amstrad CPC",
+            "Apple II",
+            "Atari ST",
+            "Commodore 64",
+            "MSX",
+            "ZX Spectrum",
+            "Mac",
+            "Atari 8-bit",
+            "PC"
+        ]
+    },
+    {
+        "name": "Bass Avenger",
+        "description": "Put on some tight red spandex pants and grab your four-string in this atrocious fishing game from S&amp;S Interactive.",
+        "release_date": "2000-09-28",
+        "platforms": [
+            "Mac",
+            "PC"
+        ]
+    },
+    {
+        "name": "WWE SmackDown! vs. RAW 2007",
+        "description": "Smackdown Vs. Raw 2007 is the third installment in the Smackdown Vs. Raw series.",
+        "release_date": "2006-11-10",
+        "platforms": [
+            "PlayStation Portable",
+            "PlayStation 2",
+            "Xbox 360"
+        ]
+    },
+    {
+        "name": "Camelot Warriors",
+        "description": "Camelot Warriors is an action / adventure 8-bit game developed in Spain by Dinamic Software. It was very popular in Spain and was even a packed-in game (along others) for a long time in Armstrad CPCs.",
+        "release_date": null,
+        "platforms": [
+            "Amstrad CPC",
+            "Commodore 64",
+            "MSX",
+            "ZX Spectrum"
+        ]
+    },
+    {
+        "name": "Super Spy Hunter",
+        "description": "A vehicular combat game for the NES. It was originally called Battle Formula in Japan, but Sunsoft purchased the license to Spy Hunter and was able to market the game as a sequel to the Spy Hunter game.",
+        "release_date": "1991-09-27",
+        "platforms": [
+            "Nintendo Entertainment System"
+        ]
+    },
+    {
+        "name": "Fritz 9: Play Chess",
+        "description": "Fritz 9: Play Chess is a chess game for the PC developed by ChessBase. It features and advanced chess engine, video tutorials, online play and is able to analyze your chess ability as well as those of great players from the past.",
+        "release_date": "2005-12-15",
+        "platforms": [
+            "PC"
+        ]
+    },
+    {
+        "name": "The Real Deal 2",
+        "description": "The Real Deal 2 is a collection of 17 classic card games.",
+        "release_date": "1999-12-31",
+        "platforms": [
+            "PC"
+        ]
     }
 ]
