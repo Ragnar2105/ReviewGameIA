@@ -4,12 +4,14 @@ import os
 import json
 import csv
 import re
+import time  # Importar la librería time para el retraso
 from dotenv import load_dotenv
 from translate import Translator
 from PIL import Image, ImageEnhance, ImageFilter
 from io import BytesIO
 import spacy
 from itertools import combinations
+from responses import generate_game_response, generate_no_results_response
 
 nlp = spacy.load("es_core_news_sm")
 
@@ -18,7 +20,7 @@ load_dotenv()
 
 # Obtener las claves de API
 API_KEY = os.getenv("GIANT_BOMB_API_KEY")
-OCR_API_KEY = os.getenv("OCR_API_KEY")  # Mueve la clave de OCR al archivo .env
+OCR_API_KEY = os.getenv("OCR_API_KEY")
 
 # Configurar el traductor al español
 translator = Translator(to_lang="es")
@@ -26,6 +28,16 @@ translator = Translator(to_lang="es")
 # Crear la carpeta 'data' si no existe
 if not os.path.exists("data"):
     os.makedirs("data")
+
+# Función para la animación de escritura
+def typewriter_effect(text, delay=0.05):
+    """Muestra el texto con un efecto de máquina de escribir."""
+    placeholder = st.empty()  # Crear un espacio reservado para el texto
+    current_text = ""
+    for char in text:
+        current_text += char
+        placeholder.markdown(current_text)  # Actualizar el texto en el espacio reservado
+        time.sleep(delay)  # Retraso entre caracteres
 
 # Función para mejorar la imagen antes de enviarla al OCR
 def enhance_image(image_path):
@@ -281,14 +293,10 @@ def get_game_info(user_input):
     # Extraer componentes de la consulta
     query_components = extract_game_name(user_input)
     
-    # Interpretar la consulta
-    #query_type, filters = interpret_query(query_components) -> así estaba antes xd
-
     if user_input:
-        # Asegúrate de que user_input sea una cadena
         if isinstance(user_input, str):
             filters = interpret_query(user_input)
-            st.write(f"Filtros aplicados: {filters}")
+            typewriter_effect(f"Filtros aplicados: {filters}")  # Animación de escritura
         else:
             st.error("La entrada del usuario no es válida. Debe ser una cadena de texto.")
     
@@ -308,15 +316,14 @@ def get_game_info(user_input):
             if "results" in data:
                 all_results.extend(data["results"])  # Agregar los resultados a la lista
 
-    # Eliminar duplicados basados en el ID del juego
     unique_results = {game["id"]: game for game in all_results}.values()
 
     if unique_results:
-        st.write("### Juegos sugeridos:")
+        typewriter_effect(generate_game_response(str(user_input)))  # Animación de escritura
+        typewriter_effect("### Juegos sugeridos:")  # Animación de escritura
         for game in unique_results:
             description = game.get('deck', 'Descripción no disponible')
 
-            # Mostrar la imagen del juego si está disponible
             col1, col2 = st.columns([2, 5])
 
             with col1:
@@ -324,25 +331,24 @@ def get_game_info(user_input):
                     st.image(game['image']['small_url'], caption="Imagen del juego", use_container_width=True)
 
             with col2:
-                st.markdown(f"#### {game['name']}")
-                st.write(f"**Descripción:** {description}")
+                typewriter_effect(f"#### {game['name']}")  # Animación de escritura
+                typewriter_effect(f"**Descripción:** {description}")  # Animación de escritura
 
                 release_date = game.get('original_release_date', 'No disponible')
                 if release_date and isinstance(release_date, str):  
-                    st.write(f"**Fecha de lanzamiento:** {release_date[:10]}")
+                    typewriter_effect(f"**Fecha de lanzamiento:** {release_date[:10]}")  # Animación de escritura
                 else:
-                    st.write("**Fecha de lanzamiento:** No disponible")
+                    typewriter_effect("**Fecha de lanzamiento:** No disponible")  # Animación de escritura
 
                 platforms = game.get('platforms', [])
                 platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
-                st.write(f"**Plataformas:** {platform_names}")
-                st.write("----")
+                typewriter_effect(f"**Plataformas:** {platform_names}")  # Animación de escritura
+                typewriter_effect("----")  # Animación de escritura
 
-        # Guardar información de los juegos sugeridos
         save_game_info_csv(list(unique_results))
         save_game_info_json(list(unique_results))
     else:
-        st.write("No se encontró información sobre el juego.")
+        typewriter_effect(generate_no_results_response())  # Animación de escritura
 
 # Interfaz de Streamlit
 def main():
@@ -365,7 +371,7 @@ def main():
         # Procesar la imagen con retroalimentación visual
         with st.spinner("Procesando imagen..."):
             extracted_text = extract_text_ocr_space(image_path)
-            st.write(f"**Texto detectado:** {extracted_text}")
+            typewriter_effect(f"**Texto detectado:** {extracted_text}")  # Animación de escritura
 
             # Intentar buscar el juego si se detecta texto
             if extracted_text.strip():
