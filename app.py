@@ -19,8 +19,26 @@ nlp = spacy.load("es_core_news_sm")
 load_dotenv()
 
 # Obtener las claves de API
-API_KEY = os.getenv("GIANT_BOMB_API_KEY")
-OCR_API_KEY = os.getenv("OCR_API_KEY")
+API_KEY = os.getenv("GIANT_BOMB_API_KEYS", "").split(",")  # Claves separadas por comas en .env
+
+OCR_API_KEYS = os.getenv("OCR_API_KEYS", "").split(",")
+# Eliminar claves vacías o None en caso de que falten
+OCR_API_KEYS = [key.strip() for key in OCR_API_KEYS if key.strip()]
+
+def get_valid_api_key(api_keys, url, params, headers={}):
+    """Intenta realizar una solicitud con cada API key hasta encontrar una válida."""
+    for api_key in api_keys:
+        params["api_key"] = api_key  # Agrega la clave al request
+        response = requests.get(url, params=params, headers=headers)
+        
+        if response.status_code == 200:
+            return response.json()  # Retorna la respuesta si fue exitosa
+        elif response.status_code == 403 or response.status_code == 429:
+            print(f"API key {api_key} ha excedido el límite, probando la siguiente...")
+            continue  # Pasa a la siguiente API key
+    
+    print("Todas las API keys han excedido el consumo.")
+    return None  # Devuelve None si ninguna API key funciona
 
 # Configurar el traductor al español
 translator = Translator(to_lang="es")
@@ -65,59 +83,49 @@ def enhance_image(image_path):
         st.error(f"Error al procesar la imagen: {e}")
         return None
 
-# Función para extraer texto usando OCR
 def extract_text_ocr_space(image_path):
     enhanced_image_path = enhance_image(image_path)
     if not enhanced_image_path:
         return "No se pudo procesar la imagen."
 
-    # Intentar primero con español
-    with open(enhanced_image_path, "rb") as image_file:
-        response = requests.post(
-            "https://api.ocr.space/parse/image",
-            files={"image": image_file},
-            data={
-                "apikey": OCR_API_KEY,
-                "language": "spa",  # Español
-                "isOverlayRequired": False,
-                "filetype": "JPG",  # Asegurar que el tipo de archivo sea correcto
-                "OCREngine": 2  # Usar el motor OCR más avanzado
-            }
-        )
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-    try:
-        result = response.json()
-    except ValueError:
-        st.error("Error al procesar la respuesta de OCR.")
-        return "No se pudo procesar la respuesta."
+    for api_key in OCR_API_KEYS:  # Intentar con cada API Key
+        for language in ["spa", "eng"]:  # Primero español, luego inglés
+            with open(enhanced_image_path, "rb") as image_file:
+                response = requests.post(
+                    "https://api.ocr.space/parse/image",
+                    files={"image": image_file},
+                    data={
+                        "apikey": api_key,
+                        "language": language,
+                        "isOverlayRequired": False,
+                        "filetype": "JPG",
+                        "OCREngine": 2
+                    },
+                    headers=headers
+                )
 
-    # Si no hay resultados con español, intentar con inglés
-    if not result.get("ParsedResults"):
-        with open(enhanced_image_path, "rb") as image_file:
-            response = requests.post(
-                "https://api.ocr.space/parse/image",
-                files={"image": image_file},
-                data={
-                    "apikey": OCR_API_KEY,
-                    "language": "eng",  # Inglés
-                    "isOverlayRequired": False,
-                    "filetype": "JPG",
-                    "OCREngine": 2
-                }
-            )
-        
-        try:
-            result = response.json()
-        except ValueError:
-            st.error("Error al procesar la respuesta de OCR.")
-            return "No se pudo procesar la respuesta."
+            if response.status_code != 200:
+                print(f"Error en la API (HTTP {response.status_code}): {response.text}")
+                continue  # Intentar con la siguiente clave API
 
-    if result.get("ParsedResults"):
-        extracted_text = result["ParsedResults"][0]["ParsedText"].replace("\n", " ")
-        return extracted_text
-    else:
-        st.error(f"Error OCR: {result}")
-        return "No se detectó texto en la imagen."
+            try:
+                result = response.json()
+                if isinstance(result, str):  # Si `result` es una cadena, convertirla a diccionario
+                    result = eval(result)
+            except (ValueError, SyntaxError):
+                st.error(f"Respuesta no válida de OCR.space: {response.text}")
+                continue
+
+            if isinstance(result, dict) and "ParsedResults" in result:
+                extracted_text = result["ParsedResults"][0].get("ParsedText", "").replace("\n", " ")
+                return extracted_text if extracted_text else "No se detectó texto en la imagen."
+
+        print(f"La clave API {api_key[:5]}... falló o alcanzó su límite.")  # Mostrar solo parte de la clave
+
+    st.error("Todas las claves API fallaron o se agotaron.")
+    return "No se detectó texto en la imagen."
 
 # Función para extraer el nombre del juego y otros detalles en lenguaje natural
 def extract_game_name(user_input):
@@ -155,7 +163,7 @@ def interpret_query(user_query):
     platform_keywords = ["playstation", "xbox", "pc", "nintendo", "switch", "steam", "mobile", "android", "ios"]
 
     # Palabras que no aportan valor para los filtros (palabras basura)
-    stop_words = {"dame", "quiero", "información", "podrías", "darme", "consultar", "de", "en", "sobre", "para", "con", "y", "la", "el", "los", "las", "un", "una", "que", "quisiera", "saber", "quiero"}
+    stop_words = {"todos", "juegos", "dame", "quiero", "información", "podrías", "darme", "consultar", "de", "en", "sobre", "para", "con", "y", "la", "el", "los", "las", "un", "una", "que", "quisiera", "saber", "quiero"}
 
     # Inicializar el diccionario de filtros
     filters = {}
@@ -182,21 +190,22 @@ def interpret_query(user_query):
         filters["name"] = " ".join(filtered_words)
 
     # Mostrar los filtros aplicados
-    print(f"Filtros aplicados: {filters}")
+    #print(f"Filtros aplicados: {filters}")
     
     return filters
 
-def build_api_url(filters):
-    base_url = f"https://www.giantbomb.com/api/games/?api_key={API_KEY}&format=json&limit=10"
+def build_api_url(filters, api_key):
+    base_url = f"https://www.giantbomb.com/api/games/?api_key={api_key}&format=json&limit=10"
     urls = set()  # Usamos un conjunto para evitar URLs duplicadas
 
     if isinstance(filters, dict):  # Asegurar que filters sea un diccionario
-        # Consultas basadas en name
+    # Consultas basadas en 'name'
         if "name" in filters and isinstance(filters["name"], str):
-            words = filters["name"].split()
-            for word in words:
-                url = f"{base_url}&filter=name:{word}"
-                urls.add(url)  # Agregar la URL al conjunto
+            name_filter = filters["name"].split()  # Dividir el nombre en palabras
+            for word in name_filter:
+                url = f"{base_url}&filter=name:{word}"  # Crear una URL para cada palabra
+                print(f"Generada URL para '{word}': {url}")  # Imprimir cada URL generada para depuración
+                urls.add(url)
 
         # Consultas adicionales para platform, genre y release_year
         if "platform" in filters and isinstance(filters["platform"], str):
@@ -213,142 +222,143 @@ def build_api_url(filters):
 
     return tuple(urls)  # Convertir el conjunto en tupla
 
-# Función para guardar los datos en CSV
+
 def save_game_info_csv(game):
-    # Convertir dict_values en una lista si es necesario
+    print(f"Tipo de 'game': {type(game)}")
+    print(f"Contenido de 'game': {game}")
+    # Verificar si 'game' es un diccionario o una lista de diccionarios
     if isinstance(game, dict):
-        game_data = game  # Es un diccionario, usarlo directamente
+        game_data = game  # Si es un diccionario, usarlo directamente
     elif isinstance(game, list) and len(game) > 0 and isinstance(game[0], dict):
-        game_data = game[0]  # Si es una lista de diccionarios, tomar el primero
+        game_data = game[0]  # Si es una lista de diccionarios, tomar el primer diccionario
     else:
         raise TypeError(f"Se esperaba un diccionario o una lista de diccionarios, pero se recibió {type(game)}")
 
+    # Definir las cabeceras que deben ser las mismas para todos los registros
     header = ['name', 'description', 'release_date', 'platforms']
-
-    # Manejo seguro de plataformas
+    
+    # Verificación segura de la lista 'platforms'
     platforms = game_data.get('platforms', [])
     if not isinstance(platforms, list):
-        platforms = []
+        platforms = []  # Si 'platforms' no es una lista, se asigna una lista vacía
 
+    # Crear el diccionario con los datos que se escribirán en el archivo CSV
     row = {
         'name': game_data.get('name', 'Nombre no disponible'),
         'description': game_data.get('deck', 'Descripción no disponible'),
         'release_date': game_data.get('original_release_date', 'No disponible'),
-        'platforms': ', '.join([platform['name'] for platform in platforms if isinstance(platform, dict)])
+        'platforms': ', '.join([platform.get('name', 'Desconocida') for platform in platforms if isinstance(platform, dict)])
     }
 
+    # Ruta del archivo donde se guardarán los datos
     file_path = 'data/game_info.csv'
-    file_exists = os.path.isfile(file_path)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)  # Crear directorio si no existe
 
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    # Comprobar si el archivo ya existe y tiene contenido
+    file_exists = os.path.isfile(file_path) and os.path.getsize(file_path) > 0
 
+    # Abrir el archivo en modo append ('a') para agregar nuevos registros
     with open(file_path, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=header)
+        
+        # Escribir el encabezado solo si el archivo no existe o está vacío
         if not file_exists:
             writer.writeheader()
+        
+        # Escribir la fila con los datos del juego
         writer.writerow(row)
 
-# Función para guardar los datos en JSON
-def save_game_info_json(game):
-    # Asegúrate de que 'game' es un diccionario y no un dict_values
-    if isinstance(game, dict):
-        game_data = {
-            'name': game['name'],
-            'description': game.get('deck', 'Descripción no disponible'),
-            'release_date': game.get('original_release_date', 'No disponible'),
-            # Asegúrate de que platforms sea una lista de diccionarios con 'name'
-            'platforms': [platform.get('name', 'Plataforma no disponible') for platform in game.get('platforms', []) or []]
-        }
-    elif isinstance(game, list):  # Si es una lista de diccionarios
-        game_data = [{
-            'name': item['name'],
-            'description': item.get('deck', 'Descripción no disponible'),
-            'release_date': item.get('original_release_date', 'No disponible'),
-            # Asegúrate de que platforms sea una lista de diccionarios con 'name'
-            'platforms': [platform.get('name', 'Plataforma no disponible') for platform in (item.get('platforms', []) or [])]
-        } for item in game]
+    return file_path  # Retornar la ruta del archivo guardado (opcional)
+
+def save_game_info_json(data):
+    file_path = 'data/game_info.json'
+
+    # Crear directorio si no existe
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Si el archivo no existe o está vacío, crear uno nuevo con el contenido
+    if not os.path.isfile(file_path) or os.path.getsize(file_path) == 0:
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(data, file, ensure_ascii=False, indent=4)
     else:
-        raise TypeError(f"Se esperaba un diccionario o una lista de diccionarios, pero se recibió {type(game)}")
+        # Leer el archivo existente y agregar los nuevos datos
+        try:
+            with open(file_path, 'r+', encoding='utf-8') as file:
+                try:
+                    existing_data = json.load(file)
+                except json.JSONDecodeError:
+                    existing_data = []  # Si el archivo está vacío o corrupto, iniciar una lista vacía
 
-    json_path = 'data/game_info.json'
-    # Cargar los datos existentes si el archivo ya existe
-    if os.path.exists(json_path):
-        with open(json_path, 'r', encoding='utf-8') as file:
-            data = json.load(file)
-    else:
-        data = []
+                # Agregar los nuevos datos a la lista existente
+                existing_data.extend(data)
 
-    # Agregar los nuevos datos
-    if isinstance(game, list):  # Si es una lista, añadir todos los juegos
-        data.extend(game_data)
-    else:  # Si es un solo juego, añadir uno solo
-        data.append(game_data)
+                # Volver a escribir el archivo con los datos actualizados
+                file.seek(0)
+                json.dump(existing_data, file, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"Error al procesar el archivo JSON: {e}")
 
-    # Guardar los datos actualizados en el archivo JSON
-    with open(json_path, 'w', encoding='utf-8') as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-
-# Función para obtener la información del juego desde Giant Bomb
+# Función para obtener la información del juego desde Giant Bomb con manejo de múltiples API keys
 def get_game_info(user_input):
-    # Extraer componentes de la consulta
     query_components = extract_game_name(user_input)
     
     if user_input:
         if isinstance(user_input, str):
             filters = interpret_query(user_input)
-            typewriter_effect(f"Filtros aplicados: {filters}")  # Animación de escritura
+            #typewriter_effect(f"Filtros aplicados: {filters}")  # Animación de escritura
         else:
             st.error("La entrada del usuario no es válida. Debe ser una cadena de texto.")
+            return
     
     headers = {'User-Agent': 'Mozilla/5.0'}
     all_results = []
-
-    for api_url in build_api_url(filters):
-        try:
-            response = requests.get(api_url, headers=headers)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error al acceder a la API: {e}")
-            continue  # Saltar esta URL y seguir con la siguiente
-
-        if response.status_code == 200:
-            data = response.json()
-            if "results" in data:
-                all_results.extend(data["results"])  # Agregar los resultados a la lista
-
+    
+    # Construir la URL base y los parámetros
+    api_urls = build_api_url(filters, API_KEY)  # Generar URLs para las consultas
+    params = {"format": "json", "limit": 10}  # Otros parámetros fijos
+    
+    # Intentar obtener una respuesta válida usando get_valid_api_key
+    for api_url in api_urls:  # Iterar sobre todas las URLs generadas
+        response_data = get_valid_api_key(API_KEY, api_url, params, headers)
+        
+        if response_data:
+            if "results" in response_data:
+                all_results.extend(response_data["results"])  # Agregar los resultados a la lista
+        else:
+            st.error("Todas las API keys han excedido el consumo o no se encontraron resultados.")
+            typewriter_effect(generate_no_results_response())  # Animación de escritura
+            return
+    
+    # Asegurar que los resultados sean únicos por ID
     unique_results = {game["id"]: game for game in all_results}.values()
+    unique_results = list(unique_results)
+    typewriter_effect(generate_game_response(str(user_input)))  # Animación de escritura
+    typewriter_effect("### Juegos sugeridos:")  # Animación de escritura
+    for game in unique_results:
+        if not isinstance(game, dict):
+            print(f"Elemento no es diccionario: {game}")
+        description = game.get('deck', 'Descripción no disponible')
 
+        col1, col2 = st.columns([2, 5])
+
+        with col1:
+            if game.get('image', {}).get('small_url'):
+                st.image(game['image']['small_url'], caption="Imagen del juego", use_container_width=True)
+
+        with col2:
+            typewriter_effect(f"#### {game['name']}")  # Animación de escritura
+            typewriter_effect(f"**Descripción:** {description}")  # Animación de escritura
+
+            release_date = game.get('original_release_date', 'No disponible')
+            typewriter_effect(f"**Fecha de lanzamiento:** {release_date[:10] if isinstance(release_date, str) else 'No disponible'}")  # Animación de escritura
+
+            platforms = game.get('platforms', [])
+            platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
+            typewriter_effect(f"**Plataformas:** {platform_names}")  # Animación de escritura
+            typewriter_effect("----")  # Animación de escritura
     if unique_results:
-        typewriter_effect(generate_game_response(str(user_input)))  # Animación de escritura
-        typewriter_effect("### Juegos sugeridos:")  # Animación de escritura
-        for game in unique_results:
-            description = game.get('deck', 'Descripción no disponible')
-
-            col1, col2 = st.columns([2, 5])
-
-            with col1:
-                if game.get('image', {}).get('small_url'):
-                    st.image(game['image']['small_url'], caption="Imagen del juego", use_container_width=True)
-
-            with col2:
-                typewriter_effect(f"#### {game['name']}")  # Animación de escritura
-                typewriter_effect(f"**Descripción:** {description}")  # Animación de escritura
-
-                release_date = game.get('original_release_date', 'No disponible')
-                if release_date and isinstance(release_date, str):  
-                    typewriter_effect(f"**Fecha de lanzamiento:** {release_date[:10]}")  # Animación de escritura
-                else:
-                    typewriter_effect("**Fecha de lanzamiento:** No disponible")  # Animación de escritura
-
-                platforms = game.get('platforms', [])
-                platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
-                typewriter_effect(f"**Plataformas:** {platform_names}")  # Animación de escritura
-                typewriter_effect("----")  # Animación de escritura
-
-        save_game_info_csv(list(unique_results))
-        save_game_info_json(list(unique_results))
-    else:
-        typewriter_effect(generate_no_results_response())  # Animación de escritura
+     save_game_info_csv(unique_results)
+    save_game_info_json(list(unique_results))
 
 # Interfaz de Streamlit
 def main():
@@ -371,7 +381,7 @@ def main():
         # Procesar la imagen con retroalimentación visual
         with st.spinner("Procesando imagen..."):
             extracted_text = extract_text_ocr_space(image_path)
-            typewriter_effect(f"**Texto detectado:** {extracted_text}")  # Animación de escritura
+            #typewriter_effect(f"**Texto detectado:** {extracted_text}")  # Animación de escritura
 
             # Intentar buscar el juego si se detecta texto
             if extracted_text.strip():
