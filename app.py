@@ -160,7 +160,13 @@ def interpret_query(user_query):
 
     # Lista de palabras clave para género y plataforma
     genre_keywords = ["acción", "aventura", "estrategia", "rpg", "deportes", "carreras", "simulación", "misterio", "terror", "plataformas"]
-    platform_keywords = ["playstation", "xbox", "pc", "nintendo", "switch", "steam", "mobile", "android", "ios"]
+    platform_keywords = [
+        "playstation", "xbox", "pc", "nintendo", "switch", "steam", "mobile", "android", 
+        "ios", "mac", "xbox 360", "playstation 3", "xbox 360 games store", "playstation network (ps3)", 
+        "iphone", "ipad", "windows phone", "playstation vita", "wii u", "browser", "playstation network (vita)", 
+        "xbox one", "playstation 4", "linux", "amazon fire tv", "new nintendo 3ds", "nintendo switch", 
+        "xbox series x|s"
+    ]
 
     # Palabras que no aportan valor para los filtros (palabras basura)
     stop_words = {"todos", "juegos", "dame", "quiero", "información", "podrías", "darme", "consultar", "de", "en", "sobre", "para", "con", "y", "la", "el", "los", "las", "un", "una", "que", "quisiera", "saber", "quiero"}
@@ -201,6 +207,8 @@ def build_api_url(filters, api_key):
     if isinstance(filters, dict):  # Asegurar que filters sea un diccionario
     # Consultas basadas en 'name'
         if "name" in filters and isinstance(filters["name"], str):
+            url = f"{base_url}&filter=name:{filters['name']}"
+            urls.add(url)
             name_filter = filters["name"].split()  # Dividir el nombre en palabras
             for word in name_filter:
                 url = f"{base_url}&filter=name:{word}"  # Crear una URL para cada palabra
