@@ -11,7 +11,7 @@ from PIL import Image, ImageEnhance, ImageFilter
 from io import BytesIO
 import spacy
 from itertools import combinations
-from responses import generate_game_response, generate_no_results_response
+from responses import generate_game_response, generate_no_results_response, generate_end_conversation_response
 
 nlp = spacy.load("es_core_news_sm")
 
@@ -25,20 +25,30 @@ OCR_API_KEYS = os.getenv("OCR_API_KEYS", "").split(",")
 # Eliminar claves vacías o None en caso de que falten
 OCR_API_KEYS = [key.strip() for key in OCR_API_KEYS if key.strip()]
 
+# Cache for the last successful API key
+last_successful_api_key = None
+
 def get_valid_api_key(api_keys, url, params, headers={}):
-    """Intenta realizar una solicitud con cada API key hasta encontrar una válida."""
-    for api_key in api_keys:
-        params["api_key"] = api_key  # Agrega la clave al request
+    global last_successful_api_key
+    # Try the last successful API key first
+    if last_successful_api_key:
+        params["api_key"] = last_successful_api_key
         response = requests.get(url, params=params, headers=headers)
-        
         if response.status_code == 200:
-            return response.json()  # Retorna la respuesta si fue exitosa
+            return response.json()
+
+    for api_key in api_keys:
+        params["api_key"] = api_key
+        response = requests.get(url, params=params, headers=headers)
+        if response.status_code == 200:
+            last_successful_api_key = api_key  # Cache this key
+            return response.json()
         elif response.status_code == 403 or response.status_code == 429:
             print(f"API key {api_key} ha excedido el límite, probando la siguiente...")
-            continue  # Pasa a la siguiente API key
-    
+            continue
+
     print("Todas las API keys han excedido el consumo.")
-    return None  # Devuelve None si ninguna API key funciona
+    return None
 
 # Configurar el traductor al español
 translator = Translator(to_lang="es")
@@ -48,7 +58,7 @@ if not os.path.exists("data"):
     os.makedirs("data")
 
 # Función para la animación de escritura
-def typewriter_effect(text, delay=0.05):
+def typewriter_effect(text, delay=0.01):
     """Muestra el texto con un efecto de máquina de escribir."""
     placeholder = st.empty()  # Crear un espacio reservado para el texto
     current_text = ""
@@ -58,9 +68,9 @@ def typewriter_effect(text, delay=0.05):
         time.sleep(delay)  # Retraso entre caracteres
 
 # Función para mejorar la imagen antes de enviarla al OCR
-def enhance_image(image_path):
+def enhance_image(image_bytes):
     try:
-        with Image.open(image_path) as img:
+        with Image.open(image_bytes) as img:
             # Convertir a escala de grises
             img = img.convert("L")
             
@@ -75,36 +85,36 @@ def enhance_image(image_path):
             # Reducir el ruido
             img = img.filter(ImageFilter.MedianFilter(size=3))
 
-            # Guardar la imagen procesada
-            enhanced_path = image_path.replace(".", "_enhanced.")
-            img.save(enhanced_path)
-            return enhanced_path
+            # Guardar la imagen procesada en BytesIO
+            enhanced_bytes = BytesIO()
+            img.save(enhanced_bytes, format="JPEG")
+            enhanced_bytes.seek(0)
+            return enhanced_bytes
     except Exception as e:
         st.error(f"Error al procesar la imagen: {e}")
         return None
 
-def extract_text_ocr_space(image_path):
-    enhanced_image_path = enhance_image(image_path)
-    if not enhanced_image_path:
+def extract_text_ocr_space(image_bytes):
+    enhanced_bytes = enhance_image(image_bytes)
+    if not enhanced_bytes:
         return "No se pudo procesar la imagen."
 
     headers = {"User-Agent": "Mozilla/5.0"}
 
     for api_key in OCR_API_KEYS:  # Intentar con cada API Key
         for language in ["spa", "eng"]:  # Primero español, luego inglés
-            with open(enhanced_image_path, "rb") as image_file:
-                response = requests.post(
-                    "https://api.ocr.space/parse/image",
-                    files={"image": image_file},
-                    data={
-                        "apikey": api_key,
-                        "language": language,
-                        "isOverlayRequired": False,
-                        "filetype": "JPG",
-                        "OCREngine": 2
-                    },
-                    headers=headers
-                )
+            response = requests.post(
+                "https://api.ocr.space/parse/image",
+                files={"image": enhanced_bytes},
+                data={
+                    "apikey": api_key,
+                    "language": language,
+                    "isOverlayRequired": False,
+                    "filetype": "JPG",
+                    "OCREngine": 2
+                },
+                headers=headers
+            )
 
             if response.status_code != 200:
                 print(f"Error en la API (HTTP {response.status_code}): {response.text}")
@@ -169,7 +179,7 @@ def interpret_query(user_query):
     ]
 
     # Palabras que no aportan valor para los filtros (palabras basura)
-    stop_words = {"todos", "juegos", "dame", "quiero", "información", "podrías", "darme", "consultar", "de", "en", "sobre", "para", "con", "y", "la", "el", "los", "las", "un", "una", "que", "quisiera", "saber", "quiero"}
+    stop_words = {"todos", "juegos", "dame", "quiero", "información", "podrías", "darme", "consultar", "de", "en", "sobre", "para", "con", "y", "la", "el", "los", "las", "un", "una", "que", "quisiera", "saber", "quiero", "hablame", "acerca", "del", "alrededor", "acerca"}
 
     # Inicializar el diccionario de filtros
     filters = {}
@@ -201,35 +211,24 @@ def interpret_query(user_query):
     return filters
 
 def build_api_url(filters, api_key):
-    base_url = f"https://www.giantbomb.com/api/games/?api_key={api_key}&format=json&limit=10"
-    urls = set()  # Usamos un conjunto para evitar URLs duplicadas
+    base_url = f"https://www.giantbomb.com/api/games/?api_key={api_key}&format=json&limit=5"
+    query_params = []
 
-    if isinstance(filters, dict):  # Asegurar que filters sea un diccionario
-    # Consultas basadas en 'name'
-        if "name" in filters and isinstance(filters["name"], str):
-            url = f"{base_url}&filter=name:{filters['name']}"
-            urls.add(url)
-            name_filter = filters["name"].split()  # Dividir el nombre en palabras
-            for word in name_filter:
-                url = f"{base_url}&filter=name:{word}"  # Crear una URL para cada palabra
-                print(f"Generada URL para '{word}': {url}")  # Imprimir cada URL generada para depuración
-                urls.add(url)
+    # Add filters to the query parameters
+    if "name" in filters:
+        query_params.append(f"filter=name:{filters['name']}")
+    if "genre" in filters:
+        query_params.append(f"filter=genres:{filters['genre']}")
+    if "platform" in filters:
+        query_params.append(f"filter=platforms:{filters['platform']}")
+    if "release_year" in filters:
+        query_params.append(f"filter=original_release_date:{filters['release_year']}-01-01|{filters['release_year']}-12-31")
 
-        # Consultas adicionales para platform, genre y release_year
-        if "platform" in filters and isinstance(filters["platform"], str):
-            url = f"{base_url}&filter=platform:{filters['platform']}"
-            urls.add(url)
+    # Combine base URL with query parameters
+    if query_params:
+        base_url += "&" + "&".join(query_params)
 
-        if "genre" in filters and isinstance(filters["genre"], str):
-            url = f"{base_url}&filter=genre:{filters['genre']}"
-            urls.add(url)
-
-        if "release_year" in filters and isinstance(filters["release_year"], str):
-            url = f"{base_url}&filter=original_release_date:{filters['release_year']}-01-01|{filters['release_year']}-12-31"
-            urls.add(url)
-
-    return tuple(urls)  # Convertir el conjunto en tupla
-
+    return base_url
 
 def save_game_info_csv(game):
     print(f"Tipo de 'game': {type(game)}")
@@ -322,20 +321,19 @@ def get_game_info(user_input):
     all_results = []
     
     # Construir la URL base y los parámetros
-    api_urls = build_api_url(filters, API_KEY)  # Generar URLs para las consultas
-    params = {"format": "json", "limit": 10}  # Otros parámetros fijos
+    api_url = build_api_url(filters, API_KEY[0])  # Generar URL para la consulta
+    params = {}  # Otros parámetros fijos
     
     # Intentar obtener una respuesta válida usando get_valid_api_key
-    for api_url in api_urls:  # Iterar sobre todas las URLs generadas
-        response_data = get_valid_api_key(API_KEY, api_url, params, headers)
+    response_data = get_valid_api_key(API_KEY, api_url, params, headers)
         
-        if response_data:
-            if "results" in response_data:
-                all_results.extend(response_data["results"])  # Agregar los resultados a la lista
-        else:
-            st.error("Todas las API keys han excedido el consumo o no se encontraron resultados.")
-            typewriter_effect(generate_no_results_response())  # Animación de escritura
-            return
+    if response_data:
+        if "results" in response_data:
+            all_results.extend(response_data["results"])  # Agregar los resultados a la lista
+    else:
+        st.error("Todas las API keys han excedido el consumo o no se encontraron resultados.")
+        typewriter_effect(generate_no_results_response())  # Animación de escritura
+        return
     
     # Asegurar que los resultados sean únicos por ID
     unique_results = {game["id"]: game for game in all_results}.values()
@@ -364,6 +362,8 @@ def get_game_info(user_input):
             platform_names = ', '.join([platform['name'] for platform in platforms]) if platforms else "No disponible"
             typewriter_effect(f"**Plataformas:** {platform_names}")  # Animación de escritura
             typewriter_effect("----")  # Animación de escritura
+    end_message = generate_end_conversation_response()
+    typewriter_effect(end_message)  # Animación de escritura
     if unique_results:
      save_game_info_csv(unique_results)
     save_game_info_json(list(unique_results))
@@ -372,35 +372,32 @@ def get_game_info(user_input):
 def main():
     st.title("ReviewGameIA")
 
-    # Opción para escribir el nombre del juego
-    user_input = st.text_input("Escribe tu consulta (por ejemplo, 'juegos de Mario' o 'juegos de acción en PlayStation'):")
+    # Display results at the top
+    if 'results' in st.session_state and st.session_state.results:
+        for result in st.session_state.results:
+            st.write(result)
 
-    # Opción para subir una imagen
+    # Input options at the bottom
+    st.write("---")  # Separator
+    if 'user_input' not in st.session_state:
+        st.session_state.user_input = ""
+    user_input = st.text_input("Escribe tu consulta (por ejemplo, 'juegos de Mario' o 'juegos de acción en PlayStation'):", value=st.session_state.user_input)
     uploaded_file = st.file_uploader("O sube una imagen con el nombre del juego", type=["png", "jpg", "jpeg"])
 
     if user_input:
-        get_game_info(user_input)
+        results = get_game_info(user_input)
+        st.session_state.results = results
+        st.session_state.user_input = ""  # Clear the input field
     elif uploaded_file:
-        # Guardar la imagen temporalmente
-        image_path = f"temp_image.{uploaded_file.name.split('.')[-1]}"
-        with open(image_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
-        # Procesar la imagen con retroalimentación visual
         with st.spinner("Procesando imagen..."):
-            extracted_text = extract_text_ocr_space(image_path)
-            #typewriter_effect(f"**Texto detectado:** {extracted_text}")  # Animación de escritura
-
-            # Intentar buscar el juego si se detecta texto
+            image_bytes = BytesIO(uploaded_file.getbuffer())
+            extracted_text = extract_text_ocr_space(image_bytes)
             if extracted_text.strip():
-                get_game_info(extracted_text.strip())
+                results = get_game_info(extracted_text.strip())
+                st.session_state.results = results
             else:
                 st.warning("No se pudo detectar texto en la imagen.")
-
-        # Eliminar la imagen temporal
-        os.remove(image_path)
-        if os.path.exists(image_path.replace(".", "_enhanced.")):
-            os.remove(image_path.replace(".", "_enhanced."))
+                st.write(generate_end_conversation_response())
 
 if __name__ == "__main__":
     main()
