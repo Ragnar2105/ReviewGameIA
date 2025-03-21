@@ -6,9 +6,7 @@ Bienvenido a **ReviewGameIA**, un proyecto innovador que combina inteligencia ar
 
 ## 🌟 Características Principales
 
-✅ **Búsqueda Inteligente**: Obtén información sobre cualquier videojuego con solo preguntar.  
-✅ **Reseñas Analizadas**: Lee opiniones detalladas y análisis generados por IA.  
-✅ **Comparación de Precios**: Encuentra las mejores ofertas en distintas plataformas.  
+✅ **Búsqueda Inteligente**: Obtén información sobre cualquier videojuego con solo preguntar.   
 ✅ **Reconocimiento de Imágenes**: Escanea una carátula o captura de pantalla y descubre qué juego es.  
 ✅ **Interfaz Web Amigable**: Accede a la IA desde una plataforma intuitiva y fácil de usar.  
 
@@ -19,7 +17,6 @@ Bienvenido a **ReviewGameIA**, un proyecto innovador que combina inteligencia ar
 🔹 **Python** - Lenguaje principal de desarrollo.  
 🔹 **API de Giant Bomb** - Fuente principal de información sobre videojuegos.   
 🔹 **OCR Mejorado** - Tecnología avanzada de reconocimiento de texto en imágenes.  
-🔹 **Marscode** - Entorno de desarrollo basado en NixOS.  
 🔹 **GitHub** - Control de versiones y almacenamiento del proyecto.  
 
 ---
