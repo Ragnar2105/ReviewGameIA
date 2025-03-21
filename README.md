@@ -17,8 +17,7 @@ Bienvenido a **ReviewGameIA**, un proyecto innovador que combina inteligencia ar
 ## 🛠️ Tecnologías Utilizadas
 
 🔹 **Python** - Lenguaje principal de desarrollo.  
-🔹 **API de Giant Bomb** - Fuente principal de información sobre videojuegos.  
-🔹 **OpenAI** - Potencia la inteligencia artificial del proyecto.  
+🔹 **API de Giant Bomb** - Fuente principal de información sobre videojuegos.   
 🔹 **OCR Mejorado** - Tecnología avanzada de reconocimiento de texto en imágenes.  
 🔹 **Marscode** - Entorno de desarrollo basado en NixOS.  
 🔹 **GitHub** - Control de versiones y almacenamiento del proyecto.  
