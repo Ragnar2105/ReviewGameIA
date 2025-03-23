@@ -87,7 +87,6 @@ def generate_no_results_response():
         "No hemos encontrado el juego. ¿Quizás un nombre alternativo? 🔄",
         "Este juego parece estar en un laberinto infinito. ¡Explóralo! 🗺️",
         "No hay información sobre este juego. ¿Quizás un nombre diferente? 📊"
-<<<<<<< HEAD
     ]
     return random.choice(responses)
 
@@ -133,37 +132,6 @@ def generate_end_conversation_response():
         "¡Cuídate! Que tus días estén llenos de aventuras. 🏞️",
         "¡Hasta la próxima! Que la aventura continúe. 🚀",
         "¡Nos vemos pronto! Que tengas un día lleno de éxitos. 🏆",
-        "¡Adiós! Que cada día sea una nueva aventura. 🌟",
-        "¡Gracias por estar con nosotros! Nos vemos en el futuro. 🔮",
-        "¡Hasta luego! Que la fuerza te acompañe. 🌌",
-        "¡Nos vemos! Que tus días estén llenos de magia. ✨"
-=======
->>>>>>> 8c237040b01a04525abf1433b76b29a277402b67
-    ]
-    return random.choice(responses)
-
-
-def generate_end_conversation_response():
-    responses = [
-        "Gracias por jugar con nosotros. ¡Hasta la próxima! 🎉",
-        "Fue un placer ayudarte. ¡Que tengas un gran día! 🌟",
-        "Nos vemos en la próxima aventura. ¡Cuídate! 👋",
-        "Espero que hayas encontrado lo que buscabas. ¡Adiós! 🖐️",
-        "¡Hasta luego! Recuerda que siempre estamos aquí para ayudarte. 🛡️",
-        "¡Gracias por tu tiempo! Esperamos verte pronto. 🕒",
-        "¡Cuídate! Siempre estaremos aquí para tus aventuras futuras. 🌍",
-        "¡Fue genial tenerte aquí! ¡Hasta la próxima! 🎊",
-        "¡Nos vemos pronto! Que tengas un día increíble. ☀️",
-        "¡Gracias por visitarnos! ¡Esperamos verte de nuevo! 🔙",
-        "¡Hasta la próxima! Que tus días estén llenos de aventuras. 🏞️",
-        "¡Adiós! Que la suerte te acompañe en tus viajes. 🍀",
-        "¡Nos vemos! Siempre hay un nuevo juego esperando por ti. 🎮",
-        "¡Hasta luego! Recuerda que siempre hay nuevas aventuras por descubrir. 🌌",
-        "¡Fue un placer ayudarte! ¡Nos vemos en el próximo desafío! 🏆",
-        "¡Gracias por tu visita! Esperamos verte pronto. 👋",
-        "¡Cuídate! Que tus días estén llenos de alegría. 😊",
-        "¡Hasta la próxima! Que la aventura continúe. 🚀",
-        "¡Nos vemos pronto! Que tengas un día lleno de sorpresas. 🎈",
         "¡Adiós! Que cada día sea una nueva aventura. 🌟",
         "¡Gracias por estar con nosotros! Nos vemos en el futuro. 🔮",
         "¡Hasta luego! Que la fuerza te acompañe. 🌌",
