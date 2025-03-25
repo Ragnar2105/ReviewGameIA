@@ -6,7 +6,8 @@ import csv
 import re
 import time
 from dotenv import load_dotenv
-from translate import Translator
+from transformers import MarianMTModel, MarianTokenizer
+import torch
 from PIL import Image, ImageEnhance, ImageFilter
 from io import BytesIO
 import spacy
@@ -32,8 +33,92 @@ if 'last_searches' not in st.session_state:
 if 'recommender' not in st.session_state:
     st.session_state.recommender = GameRecommender()
 
-# Configurar el traductor al español
-translator = Translator(to_lang="es")
+# Configurar el modelo de traducción MarianMT
+model_name = "Helsinki-NLP/opus-mt-en-es"
+model_path = "models/marianmt"
+
+def load_model():
+    """Cargar o descargar el modelo MarianMT."""
+    try:
+        # Intentar cargar el modelo localmente
+        tokenizer = MarianTokenizer.from_pretrained(model_path)
+        model = MarianMTModel.from_pretrained(model_path)
+        return tokenizer, model
+    except:
+        # Si no existe localmente, descargarlo y guardarlo
+        tokenizer = MarianTokenizer.from_pretrained(model_name)
+        model = MarianMTModel.from_pretrained(model_name)
+        
+        # Guardar el modelo y el tokenizador
+        tokenizer.save_pretrained(model_path)
+        model.save_pretrained(model_path)
+        
+        return tokenizer, model
+
+# Cargar el modelo al inicio
+tokenizer, model = load_model()
+
+# Crear la carpeta 'cache' si no existe
+if not os.path.exists("cache"):
+    os.makedirs("cache")
+
+# Función para cargar o inicializar el caché
+def load_cache():
+    """Cargar el caché de traducciones desde un archivo."""
+    cache_file = "cache/translations.json"
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+# Función para guardar el caché
+def save_cache(cache):
+    """Guardar el caché de traducciones en un archivo."""
+    cache_file = "cache/translations.json"
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        st.error(f"Error al guardar el caché: {e}")
+
+# Cargar el caché al inicio
+cache = load_cache()
+
+def translate_text(text):
+    """Traduce el texto del inglés al español usando MarianMT."""
+    try:
+        # Verificar si la traducción ya está en caché
+        if text in cache:
+            return cache[text]
+            
+        # Dividir el texto en párrafos usando los saltos de línea
+        paragraphs = text.split('\n')
+        translated_paragraphs = []
+        
+        # Traducir cada párrafo por separado
+        for paragraph in paragraphs:
+            if paragraph.strip():  # Solo traducir si el párrafo no está vacío
+                inputs = tokenizer(paragraph, return_tensors="pt", padding=True)
+                translated = model.generate(**inputs)
+                translated_paragraph = tokenizer.decode(translated[0], skip_special_tokens=True)
+                translated_paragraphs.append(translated_paragraph)
+            else:
+                translated_paragraphs.append('')  # Mantener los saltos de línea vacíos
+        
+        # Unir los párrafos traducidos con saltos de línea
+        translated_text = '\n'.join(translated_paragraphs)
+        
+        # Guardar en caché
+        cache[text] = translated_text
+        save_cache(cache)
+        
+        return translated_text
+    except Exception as e:
+        st.error(f"Error al traducir el texto: {e}")
+        return text
 
 # Crear la carpeta 'data' si no existe
 if not os.path.exists("data"):
@@ -121,6 +206,10 @@ def extract_text_ocr_space(image_bytes):
 
 # Función para extraer el nombre del juego y otros detalles en lenguaje natural
 def extract_game_name(user_input):
+    """Extrae el nombre del juego y otros detalles de la entrada del usuario."""
+    # Traducir el texto al español si está en inglés
+    translated_input = translate_text(user_input)
+    
     # Patrones para detectar consultas comunes
     patterns = [
         r"(?:háblame de|dime información sobre|qué sabes de|quiero saber sobre|busca)\s+(.+)",
@@ -130,12 +219,12 @@ def extract_game_name(user_input):
     ]
 
     for pattern in patterns:
-        match = re.search(pattern, user_input, re.IGNORECASE)
+        match = re.search(pattern, translated_input, re.IGNORECASE)
         if match:
             return match.groups()  # Devuelve una tupla con los grupos capturados
 
     # Si no se encuentra ningún patrón, devolver la entrada completa
-    return (user_input.strip(),)
+    return (translated_input.strip(),)
 
 def interpret_query(user_query):
     """Analiza la consulta del usuario y extrae los filtros relevantes."""
@@ -330,43 +419,40 @@ def get_game_info(user_input):
                     description = re.sub(r'\n\s*\n', '\n\n', description)  # Eliminar líneas vacías múltiples
                     description = description.strip()  # Eliminar espacios en blanco al inicio y final
                     
-                    # Guardar en el historial de búsquedas
-                    if len(st.session_state.last_searches) >= 3:
-                        st.session_state.last_searches.pop(0)
-                    st.session_state.last_searches.append({
-                        "name": game_details["name"],
-                        "genres": [genre["name"] for genre in game_details.get("genres", [])],
-                        "rating": game_details.get("rating", 0)
-                    })
+                    # Traducir el texto usando MarianMT
+                    translated_description = translate_text(description)
                     
-                    # Crear el objeto de información del juego
+                    # Preparar los datos del juego
                     game_info = {
-                        "name": game_details["name"],
-                        "description": description,
-                        "released": game_details.get("released", "Fecha desconocida"),
+                        "id": game_id,
+                        "name": game_details.get("name", "Nombre no disponible"),
+                        "description": translated_description,  # Usar la descripción traducida
                         "rating": game_details.get("rating", 0),
-                        "platforms": [platform["platform"]["name"] for platform in game_details.get("platforms", [])],
-                        "genres": [genre["name"] for genre in game_details.get("genres", [])],
-                        "image_url": game_details.get("background_image", None),
-                        "metacritic": game_details.get("metacritic", "N/A"),
-                        "esrb_rating": game_details.get("esrb_rating", {}).get("name", "No disponible"),
-                        "website": game_details.get("website", "No disponible")
+                        "rating_count": game_details.get("ratings_count", 0),
+                        "released": game_details.get("released", "Fecha no disponible"),
+                        "platforms": [p["platform"]["name"] for p in game_details.get("platforms", [])],
+                        "genres": [g["name"] for g in game_details.get("genres", [])],
+                        "developers": [d["name"] for d in game_details.get("developers", [])],
+                        "publishers": [p["name"] for p in game_details.get("publishers", [])],
+                        "background_image": game_details.get("background_image", ""),
+                        "metacritic": game_details.get("metacritic", None),
+                        "esrb_rating": game_details.get("esrb_rating", {}).get("name", None)
                     }
                     
-                    # Guardar la información en archivos
-                    save_game_info_csv(game_info)
+                    # Guardar la información del juego
                     save_game_info_json([game_info])
+                    save_game_info_csv(game_info)
                     
                     return game_info
-            
-            return None
+                else:
+                    st.error(f"Error al obtener los detalles del juego: {details_response.status_code}")
+            else:
+                st.error("No se encontraron juegos con ese nombre.")
         else:
-            st.error(f"Error al conectar con la API de RAWG: {response.status_code}")
-            return None
-            
+            st.error(f"Error en la búsqueda: {response.status_code}")
     except Exception as e:
-        st.error(f"Error al obtener información del juego: {str(e)}")
-        return None
+        st.error(f"Error al obtener la información del juego: {str(e)}")
+    return None
 
 def show_recommendations():
     """Muestra las recomendaciones en la barra lateral"""
@@ -385,8 +471,8 @@ def show_recommendations():
 
 def display_game_info(game_info):
     # Mostrar imagen del juego
-    if game_info["image_url"]:
-        st.image(game_info["image_url"], caption=game_info["name"])
+    if game_info["background_image"]:
+        st.image(game_info["background_image"], caption=game_info["name"])
     
     # Información principal
     st.header("Información del Juego")
@@ -396,16 +482,18 @@ def display_game_info(game_info):
         st.write(f"🎯 **Nombre:** {game_info['name']}")
         st.write(f"📅 **Fecha de lanzamiento:** {game_info['released']}")
         st.write(f"⭐ **Rating:** {game_info['rating']}/5")
-        st.write(f"🎯 **Metacritic:** {game_info['metacritic']}")
+        if 'metacritic' in game_info and game_info['metacritic'] is not None:
+            st.write(f"🎯 **Metacritic:** {game_info['metacritic']}")
     
     with col2:
         st.write(f"🎮 **Plataformas:** {', '.join(game_info['platforms'])}")
         st.write(f"🎲 **Géneros:** {', '.join(game_info['genres'])}")
-        st.write(f"📝 **ESRB Rating:** {game_info['esrb_rating']}")
+        if 'esrb_rating' in game_info and game_info['esrb_rating'] is not None:
+            st.write(f"📝 **ESRB Rating:** {game_info['esrb_rating']}")
     
     # Descripción
     st.subheader("Descripción")
-    st.write(game_info["description"])
+    st.markdown(game_info["description"])
     
     # Recomendaciones basadas en géneros similares
     if len(st.session_state.last_searches) >= 3:
